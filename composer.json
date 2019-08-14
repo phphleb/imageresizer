@@ -1,0 +1,20 @@
+{
+    "name": "phphleb/imageresizer",
+    "description": "Custom image resizing",
+    "type": "library",
+    "keywords": [
+        "image",
+        "resizing",
+        "resize",
+        "format",
+        "php"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Foma Tuturov",
+            "email": "fomiash@yandex.ru"
+        }
+    ],
+    "minimum-stability": "dev"
+}
