@@ -41,7 +41,7 @@ $image->resizeAllInCenter(128, 200, "#ffc025");
 ```
 ```php
 // По центру без обрезания (задается цвет фона в формате RGB)
-$image->resizeAllInCenter(128, 200, $image->addingRGBColor(115, 70, 188));
+$image->resizeAllInCenter(128, 200, $image->addRGBColor(115, 70, 188));
 ```
 
 ### Кадрирование области
