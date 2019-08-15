@@ -151,7 +151,7 @@ class  SimpleImage
     }
 
     // Для установки фона в формате RGB (методу resizeAllInCenter)
-    function addRGBColor($red, $green, $blue)
+    function addRgbColor($red, $green, $blue)
     {
         return [$red, $green, $blue];
     }
