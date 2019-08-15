@@ -25,7 +25,7 @@ var_dump($image->getHeight());
 ```
 ```php
 // Путь до исходного файла 
-var_dump($image->getFileName());
+var_dump($image->getFilePath());
 ```
 
 ### Изменение размеров
@@ -91,7 +91,7 @@ $image->save("/path/to/picture2.png", "png");
 ```
 ```php
 // Изменение исходного jpeg-изображения с указанием сжатия для JPEG
-$image->save($image->getFileName(), "jpeg", 80);
+$image->save($image->getFilePath(), "jpeg", 80);
 ```
 
 ### Проверка

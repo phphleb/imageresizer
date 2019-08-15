@@ -80,7 +80,7 @@ class  SimpleImage
     }
 
     // Название исходного файла
-    function getFileName()
+    function getFilePath()
     {
         return $this->filename;
     }
