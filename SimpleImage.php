@@ -26,40 +26,33 @@ class  SimpleImage
         } elseif ($this->image_type == IMAGETYPE_PNG) {
             $this->image = imagecreatefrompng($filename);
         }
+        return empty($this->image) === false;
     }
 
     // Сохранение файла
-    function save($result_filename = null, $image_type = null, $compression = 100, $permissions = null)
+    function save($result_filename, $image_type, $compression = 100)
     {
-        if (empty($result_filename)) {
-            $result_filename = $this->filename;
-        }
-        if ($image_type == null) {
-            $image_type = $this->image_type;
-        }
         if ($image_type == IMAGETYPE_JPEG || strtolower($image_type) == "jpeg" || strtolower($image_type) == "jpg") {
-            imagejpeg($this->image, $result_filename, $compression);
+            return imagejpeg($this->image, $result_filename, $compression);
         } elseif ($image_type == IMAGETYPE_GIF || strtolower($image_type) == "gif") {
-            imagegif($this->image, $result_filename);
+            return imagegif($this->image, $result_filename);
         } elseif ($image_type == IMAGETYPE_PNG || strtolower($image_type) == "png") {
-            imagepng($this->image, $result_filename);
+            return imagepng($this->image, $result_filename);
         }
-        // Установка прав доступа на файл
-        if ($permissions != null) {
-            chmod($result_filename, $permissions);
-        }
+        return false;
     }
 
     // Вывод изображения в браузер
     function output($image_type = IMAGETYPE_JPEG)
     {
         if ($image_type == IMAGETYPE_JPEG || strtolower($image_type) == "jpeg" || strtolower($image_type) == "jpg") {
-            imagejpeg($this->image);
+            return imagejpeg($this->image);
         } elseif ($image_type == IMAGETYPE_GIF || strtolower($image_type) == "gif") {
-            imagegif($this->image);
+            return imagegif($this->image);
         } elseif ($image_type == IMAGETYPE_PNG || strtolower($image_type) == "png") {
-            imagepng($this->image);
+            return imagepng($this->image);
         }
+        return false;
     }
 
     // Ширина исходного изображения

@@ -6,8 +6,26 @@ use Phphleb\Imageresizer\SimpleImage;
 
 $image = new SimpleImage();
 
-// Путь к файлу в формате JPEG, GIF или PNG
-$image->load("test.jpg");
+// Путь к исходному файлу в формате JPEG, GIF или PNG
+$image->load("/path/to/picture.jpg");
+```
+
+### Получение данных
+```php
+// Формат исходного изображения "jpeg", "gif" или "png"
+var_dump($image->getImageFormat());
+```
+```php
+// Ширина в пикселах
+var_dump($image->getWidth());
+```
+```php
+// Высота в пикселах
+var_dump($image->getHeight());
+```
+```php
+// Путь до исходного файла 
+var_dump($image->getFileName());
 ```
 
 ### Изменение размеров
@@ -50,24 +68,6 @@ $image->resizeAllInCenter(128, 200, $image->addRGBColor(115, 70, 188));
 $image->cropBySelectedRegion(500, 300, 10, 15);
 ```
 
-### Получение данных
-```php
-// Формат исходного изображения "jpeg", "gif" или "png"
-var_dump($image->getImageFormat());
-```
-```php
-// Ширина в пикселах
-var_dump($image->getWidth());
-```
-```php
-// Высота в пикселах
-var_dump($image->getHeight());
-```
-```php
-// Путь до исходного файла 
-var_dump($image->getFileName());
-```
-
 ### Вывод изображения в браузер
 ```php
 header("Content-type: image/jpeg");
@@ -83,17 +83,40 @@ $image->output("png");
 ### Сохранение в файл
 ```php
 // В тот же файл
-$image->save();
+$image->save("/path/to/picture.jpg", "jpeg");
 ```
 ```php
-// С другим расширением и названием (без указания формата вторым параметром - сохранение с исходным)
-$image->save("test2.png", "png");
+// С другим расширением и названием
+$image->save("/path/to/picture2.png", "png");
 ```
 ```php
-// С указанием сжатия для JPEG
+// Изменение исходного jpeg-изображения с указанием сжатия для JPEG
 $image->save($image->getFileName(), "jpeg", 80);
 ```
+
+### Проверка
+Проверки не подавляют стандартный вывод ошибок PHP
 ```php
-// Изменение сжатия исходного jpeg-изображения с указанием прав доступа к файлу
-$image->save($image->getFileName(), $image->getImageType(), 75, 777);
+//  Инициализация загруженного изображения
+if($image->load("/path/to/picture.jpg")){
+	// success
+} else {
+	// error 
+}
+```
+```php
+// При выводе в браузер
+if($image->output("gif")){
+	// success
+} else {
+	// error 
+}
+```
+```php
+// При сохранении изображения
+if($image->save("/path/to/picture.jpg", "jpeg"))){
+	// success
+} else {
+	// error 
+}
 ```
