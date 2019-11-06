@@ -55,6 +55,12 @@ class  SimpleImage
         return false;
     }
 
+    // Возврат данных изображения
+    function getImage()
+    {
+        return $this->image;
+    }
+
     // Ширина исходного изображения
     function getWidth()
     {

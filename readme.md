@@ -27,6 +27,10 @@ var_dump($image->getHeight());
 // Путь до исходного файла 
 var_dump($image->getFilePath());
 ```
+```php
+// Получение данных изображения для включения в другое
+$image->getImage();
+```
 
 ### Изменение размеров
 ```php
