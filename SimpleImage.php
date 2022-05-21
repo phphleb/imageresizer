@@ -25,6 +25,12 @@ class  SimpleImage
             $this->image = imagecreatefromgif($filename);
         } elseif ($this->image_type == IMAGETYPE_PNG) {
             $this->image = imagecreatefrompng($filename);
+        } elseif ($this->image_type == IMAGETYPE_WEBP) {
+            $this->image = imagecreatefromwebp($filename);
+        } elseif ($this->image_type == IMAGETYPE_BMP) {
+            $this->image = imagecreatefrombmp($filename);
+        } elseif ($this->image_type == IMAGETYPE_WBMP) {
+            $this->image = imagecreatefromwbmp($filename);
         }
         return empty($this->image) === false;
     }
@@ -38,6 +44,12 @@ class  SimpleImage
             return imagegif($this->image, $result_filename);
         } elseif ($image_type == IMAGETYPE_PNG || strtolower($image_type) == "png") {
             return imagepng($this->image, $result_filename);
+        } elseif ($image_type == IMAGETYPE_WEBP || strtolower($image_type) == "webp") {
+            return imagepng($this->image, $result_filename);
+        } elseif ($image_type == IMAGETYPE_BMP || strtolower($image_type) == "bmp") {
+            return imagebmp($this->image, $result_filename);
+        } elseif ($image_type == IMAGETYPE_WBMP || strtolower($image_type) == "wbmp") {
+            return imagewbmp($this->image, $result_filename);
         }
         return false;
     }
@@ -51,6 +63,12 @@ class  SimpleImage
             return imagegif($this->image);
         } elseif ($image_type == IMAGETYPE_PNG || strtolower($image_type) == "png") {
             return imagepng($this->image);
+        } elseif ($image_type == IMAGETYPE_WEBP || strtolower($image_type) == "webp") {
+            return imagewebp($this->image);
+        } elseif ($image_type == IMAGETYPE_BMP || strtolower($image_type) == "bmp") {
+            return imagebmp($this->image);
+        } elseif ($image_type == IMAGETYPE_WBMP || strtolower($image_type) == "wbmp") {
+            return imagewbmp($this->image);
         }
         return false;
     }

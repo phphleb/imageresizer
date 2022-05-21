@@ -6,13 +6,13 @@ use Phphleb\Imageresizer\SimpleImage;
 
 $image = new SimpleImage();
 
-// Путь к исходному файлу в формате JPEG, GIF или PNG
+// Путь к исходному файлу в формате JPEG, GIF, WEBP, BMP, WBMP или PNG
 $image->load("/path/to/picture.jpg");
 ```
 
 ### Получение данных
 ```php
-// Формат исходного изображения "jpeg", "gif" или "png"
+// Формат исходного изображения "jpeg", "gif", "webp", "bmp", "wbmp" или "png"
 var_dump($image->getImageFormat());
 ```
 ```php
@@ -124,3 +124,7 @@ if($image->save("/path/to/picture.jpg", "jpeg"))){
 	// error 
 }
 ```
+
+-----------------------------------
+
+ ![PHP](https://img.shields.io/badge/PHP->=7.2.0-blue)
