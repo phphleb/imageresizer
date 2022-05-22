@@ -16,5 +16,9 @@
             "email": "fomiash@yandex.ru"
         }
     ],
+    "require": {
+        "php": ">=7.2.0",
+        "ext-gd": "*"
+    },
     "minimum-stability": "dev"
 }

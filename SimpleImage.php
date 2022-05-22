@@ -45,7 +45,7 @@ class  SimpleImage
         } elseif ($image_type == IMAGETYPE_PNG || strtolower($image_type) == "png") {
             return imagepng($this->image, $result_filename);
         } elseif ($image_type == IMAGETYPE_WEBP || strtolower($image_type) == "webp") {
-            return imagepng($this->image, $result_filename);
+            return imagewebp($this->image, $result_filename);
         } elseif ($image_type == IMAGETYPE_BMP || strtolower($image_type) == "bmp") {
             return imagebmp($this->image, $result_filename);
         } elseif ($image_type == IMAGETYPE_WBMP || strtolower($image_type) == "wbmp") {
