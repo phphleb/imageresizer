@@ -82,13 +82,13 @@ class  SimpleImage
     // Ширина исходного изображения
     function getWidth()
     {
-        return imagesx($this->image);
+        return imagesx($this->image) ?: 1;
     }
 
     // Высота исходного изображения
     function getHeight()
     {
-        return imagesy($this->image);
+        return imagesy($this->image) ?: 1;
     }
 
     // Тип исходного файла
@@ -112,7 +112,7 @@ class  SimpleImage
     // Пропорциональное изменение размера по высоте
     function resizeToHeight($height)
     {
-        $ratio = $height / $this->getHeight();
+        $ratio = ceil($height / $this->getHeight());
         $width = $this->getWidth() * $ratio;
         $this->resize($width, $height);
     }
@@ -120,7 +120,7 @@ class  SimpleImage
     // Пропорциональное изменение размера по ширине
     function resizeToWidth($width)
     {
-        $ratio = $width / $this->getWidth();
+        $ratio = ceil($width / $this->getWidth());
         $height = $this->getheight() * $ratio;
         $this->resize($width, $height);
     }
@@ -128,14 +128,16 @@ class  SimpleImage
     // Пропорциональное изменение размера в процентном отношении
     function scale($scale)
     {
-        $width = $this->getWidth() * $scale / 100;
-        $height = $this->getheight() * $scale / 100;
+        $width = ceil($this->getWidth() * $scale / 100);
+        $height = ceil($this->getheight() * $scale / 100);
         $this->resize($width, $height);
     }
 
     // Изменение размера по указанным ширине и высоте
     function resize($width, $height)
     {
+        $width = ceil($width);
+        $height = ceil($height);
         $new_image = imagecreatetruecolor($width, $height);
         $this->imageCopyResampled($new_image, $this->image, 0, 0, 0, 0, $width, $height, $this->getWidth(), $this->getHeight());
         $this->image = $new_image;
@@ -144,6 +146,8 @@ class  SimpleImage
     // Пропорциональное изменение размера с ориентацией по центру и без пустых пространств по сторонам (лишнее обрезается)
     function resizeInCenter($width, $height)
     {
+        $width = ceil($width);
+        $height = ceil($height);
         $new_image = imagecreatetruecolor($width, $height);
         $img_width = $this->getWidth();
         $img_height = $this->getHeight();
@@ -151,14 +155,14 @@ class  SimpleImage
         $new_width = $width;
         $new_height = $height;
         $x = $y = 0;
-        $dw = $width / $img_width;
-        $dh = $height / $img_height;
+        $dw = ceil( $width / $img_width);
+        $dh = ceil($height / $img_height);
         if ($dw > $dh) {
             $new_height = $img_height * $dw;
-            $y = ($height - $new_height) / 2;
+            $y = ceil(($height - $new_height) / 2);
         } else if ($dh > $dw) {
             $new_width = $img_width * $dh;
-            $x = ($width - $new_width) / 2;
+            $x = ceil(($width - $new_width) / 2);
         }
         $this->imageCopyResampled($new_image, $this->image, $x, $y, 0, 0, $new_width, $new_height, $img_width, $img_height);
         $this->image = $new_image;
@@ -167,6 +171,10 @@ class  SimpleImage
     // Обрезание изображения по указанной области
     function cropBySelectedRegion($width, $height, $x, $y)
     {
+        $width = ceil($width);
+        $height = ceil($height);
+        $x = ceil($x);
+        $y = ceil($y);
         $new_image = imagecreatetruecolor($width, $height);
         $img_width = $this->getWidth();
         $img_height = $this->getHeight();
@@ -183,6 +191,8 @@ class  SimpleImage
     // Пропорциональное изменение размера на прозрачном фоне для PNG (с опциональным закрашиванием для всех типов)
     function resizeAllInCenter($width, $height, $background = null)
     {
+        $width = ceil($width);
+        $height = ceil($height);
         list($r, $g, $b) = $background ? (is_array($background) ? $background : sscanf($background, "#%02x%02x%02x")) : [0, 0, 0];
         $new_image = imagecreatetruecolor($width, $height);
         $color = imagecolorallocate($new_image, $r, $g, $b);
@@ -197,14 +207,14 @@ class  SimpleImage
         $new_width = $width;
         $new_height = $height;
         $x = $y = 0;
-        $dw = $width / $img_width;
-        $dh = $height / $img_height;
+        $dw = ceil($width / $img_width);
+        $dh = ceil($height / $img_height);
         if ($dw < $dh) {
             $new_height = $img_height * $dw;
-            $y = ($height - $new_height) / 2;
+            $y = ceil(($height - $new_height) / 2);
         } else if ($dh < $dw) {
             $new_width = $img_width * $dh;
-            $x = ($width - $new_width) / 2;
+            $x = ceil(($width - $new_width) / 2);
         }
         $this->imageCopyResampled($new_image, $this->image, $x, $y, 0, 0, $new_width, $new_height, $img_width, $img_height);
         $this->image = $new_image;

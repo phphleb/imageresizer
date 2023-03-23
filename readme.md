@@ -102,7 +102,7 @@ $image->save($image->getFilePath(), "jpeg", 80);
 Проверки не подавляют стандартный вывод ошибок PHP
 ```php
 //  Инициализация загруженного изображения
-if($image->load("/path/to/picture.jpg")){
+if ($image->load("/path/to/picture.jpg")){
 	// success
 } else {
 	// error 
@@ -110,7 +110,7 @@ if($image->load("/path/to/picture.jpg")){
 ```
 ```php
 // При выводе в браузер
-if($image->output("gif")){
+if ($image->output("gif")){
 	// success
 } else {
 	// error 
@@ -118,7 +118,7 @@ if($image->output("gif")){
 ```
 ```php
 // При сохранении изображения
-if($image->save("/path/to/picture.jpg", "jpeg"))){
+if ($image->save("/path/to/picture.jpg", "jpeg")){
 	// success
 } else {
 	// error 
