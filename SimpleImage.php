@@ -112,7 +112,7 @@ class  SimpleImage
     // Пропорциональное изменение размера по высоте
     function resizeToHeight($height)
     {
-        $ratio = ceil($height / $this->getHeight());
+        $ratio = $height / $this->getHeight();
         $width = $this->getWidth() * $ratio;
         $this->resize($width, $height);
     }
@@ -120,7 +120,7 @@ class  SimpleImage
     // Пропорциональное изменение размера по ширине
     function resizeToWidth($width)
     {
-        $ratio = ceil($width / $this->getWidth());
+        $ratio = $width / $this->getWidth();
         $height = $this->getheight() * $ratio;
         $this->resize($width, $height);
     }
@@ -128,8 +128,8 @@ class  SimpleImage
     // Пропорциональное изменение размера в процентном отношении
     function scale($scale)
     {
-        $width = ceil($this->getWidth() * $scale / 100);
-        $height = ceil($this->getheight() * $scale / 100);
+        $width = $this->getWidth() * $scale / 100;
+        $height = $this->getheight() * $scale / 100;
         $this->resize($width, $height);
     }
 
