@@ -14,8 +14,7 @@ final class ExifOrientation
             try {
                 $exif = @exif_read_data($filename, 'IFD0', true, false);
                 if (is_array($exif)) {
-                    $value = isset($exif['IFD0']['Orientation']) ? $exif['IFD0']['Orientation']
-                        : (isset($exif['Orientation']) ? $exif['Orientation'] : null);
+                    $value = $exif['IFD0']['Orientation'] ?? ($exif['Orientation'] ?? null);
                     if (is_numeric($value) && (int) $value >= 1 && (int) $value <= 8) {
                         return (int) $value;
                     }

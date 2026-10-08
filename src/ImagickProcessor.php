@@ -67,7 +67,7 @@ class ImagickProcessor implements ProcessorInterface
     }
 
     /** Готовит отдельную копию для записи, не меняя исходный объект и его метаданные. */
-    private function prepare($format, $quality)
+    private function prepare($format, $quality): bool
     {
         if (!$this->image) return false;
         $format = strtolower((string) $format);
@@ -191,7 +191,7 @@ class ImagickProcessor implements ProcessorInterface
     }
 
     /** Изменяет размеры изображения с использованием Lanczos. */
-    public function resize($width, $height)
+    public function resize($width, $height): bool
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         return $this->image->resizeImage($width, $height, \Imagick::FILTER_LANCZOS, 1, false) !== false;

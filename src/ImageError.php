@@ -14,7 +14,7 @@ class ImageError extends \Exception
     const INVALID_ARGUMENT = 8;
     const PROFILE_COLORSPACE_MISMATCH = 9;
 
-    /** Принимает код и сообщение на английском. */
+    /** Принимает код и сообщение. */
     public function __construct($code, $message)
     {
         parent::__construct($message, $code);

@@ -57,7 +57,7 @@ class SimpleImage
      * @param string $version Одна из констант PROCESSOR_AUTO, PROCESSOR_GD, PROCESSOR_IMAGICK.
      * @return bool
      */
-    public function setProcessorVersion($version): bool
+    public function setProcessorVersion(string $version): bool
     {
         if (!in_array($version, array(self::PROCESSOR_AUTO, self::PROCESSOR_GD, self::PROCESSOR_IMAGICK), true)) {
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Unknown image processor');
@@ -84,7 +84,7 @@ class SimpleImage
      * @param bool $replace Заменить существующий ICC без конвертации цветов.
      * @return bool
      */
-    public function setProfile($profile = self::PROFILE_SRGB, $replace = false): bool
+    public function setProfile(string $profile = self::PROFILE_SRGB, bool $replace = false): bool
     {
         $icc = $this->readProfile($profile);
         if ($icc === false) {
@@ -114,7 +114,7 @@ class SimpleImage
      * @param string $profile PROFILE_SRGB или путь к читаемому целевому ICC-файлу.
      * @return bool
      */
-    public function convertToProfile($profile = self::PROFILE_SRGB): bool
+    public function convertToProfile(string $profile = self::PROFILE_SRGB): bool
     {
         if (!$this->processor) {
             return $this->fail(ImageError::PROCESSING_FAILED, 'Load an image before converting its color profile');
@@ -156,7 +156,7 @@ class SimpleImage
      * @param bool $stripMetadata false — сохранить метаданные, иначе удалить лишние.
      * @return bool
      */
-    public function load($filename, bool $stripMetadata = true): bool
+    public function load(string $filename, bool $stripMetadata = true): bool
     {
         if (!is_string($filename) || $filename === '') {
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Image filename must be a non-empty string');
@@ -212,9 +212,12 @@ class SimpleImage
      * и числовые константы IMAGETYPE_*. Для JPEG и WebP $compression задаёт качество.
      * Возвращает true/false; при неудаче используйте getError().
      *
+     * @param $result_filename
+     * @param $image_type
+     * @param int $compression
      * @return bool
      */
-    public function save($result_filename, $image_type, $compression = 100): bool
+    public function save($result_filename, $image_type, int $compression = 100): bool
     {
         if (!$this->processor) {
             return $this->fail(ImageError::SAVE_FAILED, 'Load an image before saving it');
@@ -238,9 +241,10 @@ class SimpleImage
      * Выводит изображение в поток ответа (по умолчанию JPEG).
      * Возвращает true/false, ошибку можно получить через getError().
      *
+     * @param int $image_type
      * @return bool
      */
-    public function output($image_type = IMAGETYPE_JPEG): bool
+    public function output(int $image_type = IMAGETYPE_JPEG): bool
     {
         if (!$this->processor) {
             return $this->fail(ImageError::SAVE_FAILED, 'Load an image before outputting it');
@@ -466,7 +470,7 @@ class SimpleImage
             $types[constant('IMAGETYPE_AVIF')] = 'avif';
         }
         if (is_int($type)) {
-            return isset($types[$type]) ? $types[$type] : false;
+            return $types[$type] ?? false;
         }
         if (!is_string($type)) {
             return false;
@@ -561,7 +565,7 @@ class SimpleImage
     }
 
     /** Совместимость с наследниками: делегирует ресемплинг GD; возвращает bool. */
-    protected function imageCopyResampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh)
+    protected function imageCopyResampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh): bool
     {
         if (!function_exists('imagecopyresampled')) return false;
         return imagecopyresampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh);

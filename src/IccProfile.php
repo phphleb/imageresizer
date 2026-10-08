@@ -12,7 +12,7 @@ final class IccProfile
         $map = array('RGB ' => 'RGB', 'CMYK' => 'CMYK', 'GRAY' => 'GRAY', 'Lab ' => 'LAB',
             'XYZ ' => 'XYZ', 'Luv ' => 'LUV', 'YCbr' => 'YCBCR', 'Yxy ' => 'YXY', 'HSV ' => 'HSV',
             'HLS ' => 'HSL');
-        return isset($map[$space]) ? $map[$space] : 'OTHER';
+        return $map[$space] ?? 'OTHER';
     }
 
     /** Возвращает наименование ICC из тегов desc/mluc; если имени нет, возвращает null. */

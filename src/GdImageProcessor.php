@@ -10,7 +10,7 @@ class GdImageProcessor implements ProcessorInterface
     public function getColorspace(): ?string { return $this->image ? 'RGB' : null; }
 
     /** Загружает изображение из файла; возвращает true/false. */
-    public function load($filename, $stripMetadata = true)
+    public function load($filename, $stripMetadata = true): bool
     {
         // Параметр действует только для Imagick. GD всегда записывает файл без
         // исходных EXIF/GPS/XMP, как в прежней версии библиотеки.
@@ -97,7 +97,7 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Изменяет ширину и высоту изображения до указанных значений. */
-    public function resize($width, $height)
+    public function resize($width, $height): bool
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         $canvas = $this->canvas($width, $height);
@@ -107,7 +107,7 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Обрезает изображение по заданной прямоугольной области. */
-    public function crop($width, $height, $x, $y)
+    public function crop($width, $height, $x, $y): bool
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         $canvas = $this->canvas($width, $height);
@@ -117,7 +117,7 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Вписывает изображение в область или заполняет её с обрезанием. */
-    public function fit($width, $height, $background, $cover)
+    public function fit($width, $height, $background, $cover): bool
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         $scale = $cover ? max($width / $this->getWidth(), $height / $this->getHeight())
@@ -132,9 +132,11 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Назначает ICC без преобразования цвета; replace разрешает замену существующей метки. */
-    public function applyProfile($icc, $replace) { return false; }
+    public function applyProfile($icc, $replace): bool
+    { return false; }
     /** Возвращает бинарные данные текущего ICC либо null. */
     public function getProfile() { return null; }
     /** Преобразует пиксели из исходного встроенного ICC в указанный целевой ICC. */
-    public function convertToProfile($icc) { return false; }
+    public function convertToProfile($icc): bool
+    { return false; }
 }
