@@ -10,6 +10,6 @@
     "ext-imagick": "Preferred processor with ICC color profile support",
     "ext-gd": "Fallback processor when Imagick is not installed"
   },
-  "autoload": {"psr-4": {"Phphleb\\Imageresizer\\": "/", "Phphleb\\Imageresizer\\Src": "src"}},
+  "autoload": {"psr-4": {"Phphleb\\Imageresizer\\": "/", "Phphleb\\Imageresizer\\Src\\": "src"}},
   "minimum-stability": "dev"
 }
