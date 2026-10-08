@@ -67,7 +67,7 @@ class ImagickProcessor implements ProcessorInterface
     }
 
     /** Готовит отдельную копию для записи, не меняя исходный объект и его метаданные. */
-    private function prepare($format, $quality): bool
+    private function prepare($format, $quality)
     {
         if (!$this->image) return false;
         $format = strtolower((string) $format);
