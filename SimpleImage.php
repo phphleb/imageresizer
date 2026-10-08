@@ -50,7 +50,7 @@ class SimpleImage
     }
 
     /**
-     * Выбирает обработчик перед load(). AUTO предпочитает Imagick, затем GD.
+     * Выбирает обработчик перед load(). AUTO предпочитает GD, затем Imagick.
      * Если принудительно выбранное расширение недоступно, возвращает false и сохраняет ошибку.
      * Изменять выбранный обработчик у уже загруженного изображения нельзя.
      *
@@ -142,7 +142,7 @@ class SimpleImage
     }
 
     /**
-     * Загружает изображение из файла или URL. Предпочитает Imagick, иначе GD.
+     * Загружает изображение из файла или URL. Предпочитает GD, иначе Imagick.
      * Всегда учитывает EXIF Orientation: сначала поворачивает/отражает пиксели,
      * чтобы фотография была расположена правильно после обработки.
      * По умолчанию удаляет EXIF, GPS, IPTC, XMP и прочие метаданные при save()/output(),
@@ -156,7 +156,7 @@ class SimpleImage
      * @param bool $stripMetadata false — сохранить метаданные, иначе удалить лишние.
      * @return bool
      */
-    public function load(string $filename, bool $stripMetadata = true): bool
+    public function load($filename, $stripMetadata = true)
     {
         if (!is_string($filename) || $filename === '') {
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Image filename must be a non-empty string');
@@ -166,7 +166,7 @@ class SimpleImage
             return false;
         }
         try {
-            // AUTO может перейти на GD при ошибке декодирования через Imagick.
+            // AUTO пробует второй доступный обработчик при ошибке декодирования.
             // GD всегда удаляет метаданные, включая при load(..., false).
             $loadReason = null;
             try {
@@ -175,14 +175,18 @@ class SimpleImage
                 $loaded = false;
                 $loadReason = $loadException->getMessage();
             }
-            if (!$loaded && $this->version === self::PROCESSOR_AUTO &&
-                $processor instanceof ImagickProcessor && $this->available(self::PROCESSOR_GD)) {
-                $processor = new GdImageProcessor();
-                try {
-                    $loaded = $processor->load($filename, $stripMetadata);
-                } catch (\Throwable $loadException) {
-                    $loaded = false;
-                    $loadReason = $loadException->getMessage();
+            if (!$loaded && $this->version === self::PROCESSOR_AUTO) {
+                $fallback = $processor instanceof GdImageProcessor
+                    ? self::PROCESSOR_IMAGICK : self::PROCESSOR_GD;
+                if ($this->available($fallback)) {
+                    $processor = $fallback === self::PROCESSOR_IMAGICK
+                        ? new ImagickProcessor() : new GdImageProcessor();
+                    try {
+                        $loaded = $processor->load($filename, $stripMetadata);
+                    } catch (\Throwable $loadException) {
+                        $loaded = false;
+                        $loadReason = $loadException->getMessage();
+                    }
                 }
             }
             if (!$loaded) {
@@ -214,10 +218,10 @@ class SimpleImage
      *
      * @param $result_filename
      * @param $image_type
-     * @param int $compression
+     * @param int|string $compression
      * @return bool
      */
-    public function save($result_filename, $image_type, int $compression = 100): bool
+    public function save($result_filename, $image_type, $compression = 100)
     {
         if (!$this->processor) {
             return $this->fail(ImageError::SAVE_FAILED, 'Load an image before saving it');
@@ -241,10 +245,10 @@ class SimpleImage
      * Выводит изображение в поток ответа (по умолчанию JPEG).
      * Возвращает true/false, ошибку можно получить через getError().
      *
-     * @param int $image_type
+     * @param int|string $image_type
      * @return bool
      */
-    public function output(int $image_type = IMAGETYPE_JPEG): bool
+    public function output($image_type = IMAGETYPE_JPEG)
     {
         if (!$this->processor) {
             return $this->fail(ImageError::SAVE_FAILED, 'Load an image before outputting it');
@@ -373,7 +377,7 @@ class SimpleImage
     }
 
     /** Возвращает массив RGB для фона в resizeAllInCenter(). */
-    public function addRgbColor($red, $green, $blue): array
+    public function addRgbColor($red, $green, $blue)
     {
         return array($red, $green, $blue);
     }
@@ -396,7 +400,14 @@ class SimpleImage
     {
         $version = $this->version;
         if ($version === self::PROCESSOR_AUTO) {
-            $version = $this->available(self::PROCESSOR_IMAGICK) ? self::PROCESSOR_IMAGICK : self::PROCESSOR_GD;
+            if ($this->available(self::PROCESSOR_GD)) {
+                $version = self::PROCESSOR_GD;
+            } elseif ($this->available(self::PROCESSOR_IMAGICK)) {
+                $version = self::PROCESSOR_IMAGICK;
+            } else {
+                return $this->fail(ImageError::BACKEND_UNAVAILABLE,
+                    'No available PHP image processor: GD or Imagick');
+            }
         }
         if (!$this->available($version)) {
             return $this->fail(ImageError::BACKEND_UNAVAILABLE, 'No available PHP image processor: ' . $version);
@@ -565,7 +576,7 @@ class SimpleImage
     }
 
     /** Совместимость с наследниками: делегирует ресемплинг GD; возвращает bool. */
-    protected function imageCopyResampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh): bool
+    protected function imageCopyResampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh)
     {
         if (!function_exists('imagecopyresampled')) return false;
         return imagecopyresampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh);

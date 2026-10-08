@@ -7,8 +7,8 @@
   "authors": [{"name":"Foma Tuturov", "email":"fomiash@yandex.ru"}],
   "require": {"php": ">=7.2.0", "ext-zlib": "*"},
   "suggest": {
-    "ext-imagick": "Preferred processor with ICC color profile support",
-    "ext-gd": "Fallback processor when Imagick is not installed"
+    "ext-gd": "Default image processor",
+    "ext-imagick": "Alternative processor with ICC color profile support"
   },
   "autoload": {"psr-4": {"Phphleb\\Imageresizer\\": "/", "Phphleb\\Imageresizer\\Src\\": "src"}},
   "minimum-stability": "dev"
