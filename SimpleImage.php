@@ -4,13 +4,10 @@
  */
 namespace Phphleb\Imageresizer;
 
-require_once __DIR__ . '/ProcessorInterface.php';
-require_once __DIR__ . '/GdImageProcessor.php';
-require_once __DIR__ . '/ImagickProcessor.php';
-require_once __DIR__ . '/ImageError.php';
-require_once __DIR__ . '/IccProfile.php';
-require_once __DIR__ . '/PngIcc.php';
-require_once __DIR__ . '/ExifOrientation.php';
+use Phphleb\Imageresizer\Src\GdImageProcessor;
+use Phphleb\Imageresizer\Src\IccProfile;
+use Phphleb\Imageresizer\Src\ImageError;
+use Phphleb\Imageresizer\Src\ImagickProcessor;
 
 /** Обертка для обработки изображений через Imagick или GD. */
 class SimpleImage

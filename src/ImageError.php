@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 /** Описание последней ошибки обработки без обязательного выбрасывания исключения. */
 class ImageError extends \Exception

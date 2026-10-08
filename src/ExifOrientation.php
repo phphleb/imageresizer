@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 /** Читает EXIF Orientation из JPEG без обязательной зависимости от ext-exif. */
 final class ExifOrientation

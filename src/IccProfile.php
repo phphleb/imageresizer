@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 /** Вспомогательное чтение заголовка ICC и его текстового описания без расширений PHP. */
 final class IccProfile

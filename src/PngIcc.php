@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 /** Internal helper for retaining embedded ICC bytes in PNG files. */
 final class PngIcc

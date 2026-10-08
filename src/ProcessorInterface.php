@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 interface ProcessorInterface
 {

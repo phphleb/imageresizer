@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 /** Обработчик Imagick: пиксели, ICC и метаданные изображений. */
 class ImagickProcessor implements ProcessorInterface

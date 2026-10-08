@@ -1,5 +1,5 @@
 <?php
-namespace Phphleb\Imageresizer;
+namespace Phphleb\Imageresizer\Src;
 
 /** GD processor. GD has no color-management API: ICC embedding is unsupported. */
 class GdImageProcessor implements ProcessorInterface
