@@ -123,7 +123,7 @@ if ($image->save("/path/to/picture.jpg", "jpeg")){
 ```
 
 ### Выбор обработчика
-По умолчанию выбирается GD. Если GD недоступен или не смог открыть конкретный файл, в автоматическом режиме будет предпринята попытка через Imagick. Если доступен только Imagick, он используется автоматически. При отсутствии обоих расширений load() вернёт false, а причина будет доступна через getError().
+По умолчанию выбирается GD. Если GD недоступен или не смог открыть конкретный файл, в автоматическом режиме будет предпринята попытка через Imagick. Если доступен только Imagick, он используется автоматически. При отсутствии обоих расширений `load()` бросит `ImageError`; это же исключение бросает `setProcessorVersion()`, если явно выбран недоступный обработчик.
 ```php
 // Выбор обработчика перед загрузкой файла
 $image->setProcessorVersion(SimpleImage::PROCESSOR_IMAGICK);
@@ -137,7 +137,13 @@ $image->setProcessorVersion(SimpleImage::PROCESSOR_AUTO);
 // Используемый обработчик
 var_dump($image->getProcessorVersion());
 ```
-Если выбранное расширение недоступно, setProcessorVersion() возвращает false.
+```php
+try {
+    $image->setProcessorVersion(SimpleImage::PROCESSOR_IMAGICK);
+} catch (\Phphleb\Imageresizer\Src\ImageError $error) {
+    echo $error->getMessage();
+}
+```
 
 ### ICC-профили
 При работе через GD запись и преобразование ICC недоступны.
@@ -177,7 +183,7 @@ $image->load("/path/to/picture.jpg", false);
 ```
 
 ### Ошибки
-При неудаче load(), save(), output() и других методов возвращается false. Методы изменения размеров ничего не возвращают; ошибка доступна через getError().
+При неудаче load(), save(), output() и других методов возвращается false. Методы изменения размеров ничего не возвращают; ошибка доступна через getError(). Исключение — отсутствие обоих обработчиков при load() и явный выбор недоступного обработчика: в этих случаях бросается ImageError.
 ```php
 if (!$image->load("/path/to/picture.jpg")) {
     echo $image->getError()->getMessage();

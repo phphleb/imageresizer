@@ -16,7 +16,9 @@ class GdImageProcessor implements ProcessorInterface
         // исходных EXIF/GPS/XMP, как в прежней версии библиотеки.
         $info = @getimagesize($filename);
         if (!$info) return false;
-        $format = strtolower(image_type_to_extension($info[2], false));
+        // PHP 8.2 maps IMAGETYPE_WBMP to "bmp", although GD uses a separate
+        // imagecreatefromwbmp() decoder. Keep the public WBMP contract stable.
+        $format = $info[2] === IMAGETYPE_WBMP ? 'wbmp' : strtolower(image_type_to_extension($info[2], false));
         if ($format === 'jpg') $format = 'jpeg';
         $fn = 'imagecreatefrom' . $format;
         if (!function_exists($fn)) return false;

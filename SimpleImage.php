@@ -51,11 +51,12 @@ class SimpleImage
 
     /**
      * Выбирает обработчик перед load(). AUTO предпочитает GD, затем Imagick.
-     * Если принудительно выбранное расширение недоступно, возвращает false и сохраняет ошибку.
+     * Если принудительно выбранное расширение недоступно, бросает ImageError.
      * Изменять выбранный обработчик у уже загруженного изображения нельзя.
      *
      * @param string $version Одна из констант PROCESSOR_AUTO, PROCESSOR_GD, PROCESSOR_IMAGICK.
      * @return bool
+     * @throws ImageError Если выбранный обработчик недоступен.
      */
     public function setProcessorVersion(string $version): bool
     {
@@ -66,7 +67,7 @@ class SimpleImage
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Cannot change the image processor after loading an image');
         }
         if ($version !== self::PROCESSOR_AUTO && !$this->available($version)) {
-            return $this->fail(ImageError::BACKEND_UNAVAILABLE, 'PHP extension is not available: ' . $version);
+            $this->throwBackendUnavailable('PHP extension is not available: ' . $version);
         }
         $this->version = $version;
         $this->error = null;
@@ -151,10 +152,12 @@ class SimpleImage
      * GD, как и прежде, удаляет метаданные при записи вне зависимости от параметра:
      * GD не поддерживает их сохранение и не возвращает из-за этого ошибку.
      * Не назначает sRGB автоматически. При ошибке возвращает false; getError() — причина.
+     * Если недоступны оба обработчика, бросает ImageError.
      *
      * @param string $filename Путь или URL исходного изображения.
      * @param bool $stripMetadata false — сохранить метаданные, иначе удалить лишние.
      * @return bool
+     * @throws ImageError Если не доступен выбранный обработчик или оба обработчика.
      */
     public function load($filename, $stripMetadata = true)
     {
@@ -405,12 +408,11 @@ class SimpleImage
             } elseif ($this->available(self::PROCESSOR_IMAGICK)) {
                 $version = self::PROCESSOR_IMAGICK;
             } else {
-                return $this->fail(ImageError::BACKEND_UNAVAILABLE,
-                    'No available PHP image processor: GD or Imagick');
+                $this->throwBackendUnavailable('No available PHP image processor: GD or Imagick');
             }
         }
         if (!$this->available($version)) {
-            return $this->fail(ImageError::BACKEND_UNAVAILABLE, 'No available PHP image processor: ' . $version);
+            $this->throwBackendUnavailable('PHP extension is not available: ' . $version);
         }
         return $version === self::PROCESSOR_IMAGICK ? new ImagickProcessor() : new GdImageProcessor();
     }
@@ -532,6 +534,13 @@ class SimpleImage
     {
         $this->error = new ImageError($code, $message);
         return false;
+    }
+
+    /** Сохраняет и бросает исключение для ошибок доступности обработчика. */
+    private function throwBackendUnavailable($message)
+    {
+        $this->error = new ImageError(ImageError::BACKEND_UNAVAILABLE, $message);
+        throw $this->error;
     }
 
     /**
