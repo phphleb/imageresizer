@@ -1,29 +1,15 @@
 {
-    "name": "phphleb/imageresizer",
-    "description": "Custom image resizing",
-    "type": "library",
-    "keywords": [
-        "image",
-        "resizing",
-        "resize",
-        "format",
-        "php"
-    ],
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Foma Tuturov",
-            "email": "fomiash@yandex.ru"
-        }
-    ],
-    "require": {
-        "php": ">=7.2.0",
-        "ext-gd": "*"
-    },
-    "autoload": {
-        "psr-4": {
-            "Phphleb\\Imageresizer\\": "/"
-        }
-    },
-    "minimum-stability": "dev"
+  "name": "phphleb/imageresizer",
+  "description": "Custom image resizing with automatic Imagick/GD fallback",
+  "type": "library",
+  "keywords": ["image", "resizing", "resize", "format", "php"],
+  "license": "MIT",
+  "authors": [{"name":"Foma Tuturov", "email":"fomiash@yandex.ru"}],
+  "require": {"php": ">=7.2.0"},
+  "suggest": {
+    "ext-imagick": "Preferred processor with ICC color profile support",
+    "ext-gd": "Fallback processor when Imagick is not installed"
+  },
+  "autoload": {"psr-4": {"Phphleb\\Imageresizer\\": ""}},
+  "minimum-stability": "dev"
 }
