@@ -8,6 +8,8 @@ require_once __DIR__ . '/ProcessorInterface.php';
 require_once __DIR__ . '/GdImageProcessor.php';
 require_once __DIR__ . '/ImagickProcessor.php';
 require_once __DIR__ . '/ImageError.php';
+require_once __DIR__ . '/IccProfile.php';
+require_once __DIR__ . '/ExifOrientation.php';
 
 /** Обертка для обработки изображений через Imagick или GD. */
 class SimpleImage
@@ -26,7 +28,8 @@ class SimpleImage
 
     private $processor;
     private $version = self::PROCESSOR_AUTO;
-    private $profile = self::PROFILE_SRGB;
+    // Профиль назначается только после явного setProfile().
+    private $profile = null;
     private $replaceProfile = false;
     private $error;
 
@@ -56,12 +59,12 @@ class SimpleImage
      * @param string $version Одна из констант PROCESSOR_AUTO, PROCESSOR_GD, PROCESSOR_IMAGICK.
      * @return bool
      */
-    public function setProcessorVersion(string $version): bool
+    public function setProcessorVersion($version): bool
     {
         if (!in_array($version, array(self::PROCESSOR_AUTO, self::PROCESSOR_GD, self::PROCESSOR_IMAGICK), true)) {
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Unknown image processor');
         }
-        if ($this->processor && $version !== $this->version) {
+        if ($this->processor && $version !== self::PROCESSOR_AUTO && $version !== $this->getProcessorVersion()) {
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Cannot change the image processor after loading an image');
         }
         if ($version !== self::PROCESSOR_AUTO && !$this->available($version)) {
@@ -83,13 +86,14 @@ class SimpleImage
      * @param bool $replace Заменить существующий ICC без конвертации цветов.
      * @return bool
      */
-    public function setProfile(string $profile = self::PROFILE_SRGB, bool $replace = false): bool
+    public function setProfile($profile = self::PROFILE_SRGB, $replace = false): bool
     {
         $icc = $this->readProfile($profile);
         if ($icc === false) {
             return false;
         }
         if ($this->processor) {
+            if (!$this->canAssignProfile($this->processor, $icc, (bool) $replace)) return false;
             if (!$this->applyProfileTo($this->processor, $icc, (bool) $replace)) {
                 return false;
             }
@@ -105,14 +109,14 @@ class SimpleImage
      * Конвертирует цвета пикселей из встроенного исходного ICC-профиля в указанный целевой.
      * В отличие от setProfile(), изменяет значения пикселей, сохраняя по возможности их
      * визуальное представление. Требуются загруженное изображение, Imagick и исходный ICC.
-     * При загрузке файла без ICC библиотека по умолчанию назначает ему sRGB.
-     * Если это неверное предположение, сначала назначьте правильный ICC через setProfile().
+     * Если исходного ICC нет, возвращает false. Библиотека не предполагает sRGB автоматически.
+     * Исходный профиль можно явно назначить через setProfile() перед конвертацией.
      * Исходный файл на диске не изменяется до вызова save().
      *
      * @param string $profile PROFILE_SRGB или путь к читаемому целевому ICC-файлу.
      * @return bool
      */
-    public function convertToProfile(string $profile = self::PROFILE_SRGB): bool
+    public function convertToProfile($profile = self::PROFILE_SRGB): bool
     {
         if (!$this->processor) {
             return $this->fail(ImageError::PROCESSING_FAILED, 'Load an image before converting its color profile');
@@ -140,16 +144,23 @@ class SimpleImage
     }
 
     /**
-     * Загружает изображение из файла или URL. По умолчанию использует Imagick, иначе GD.
-     * При использовании Imagick назначает sRGB при отсутствии встроенного ICC; пиксели не меняются.
-     * При ошибке возвращает false, описание доступно через getError().
+     * Загружает изображение из файла или URL. Предпочитает Imagick, иначе GD.
+     * Всегда учитывает EXIF Orientation: сначала поворачивает/отражает пиксели,
+     * чтобы фотография была расположена правильно после обработки.
+     * По умолчанию удаляет EXIF, GPS, IPTC, XMP и прочие метаданные при save()/output(),
+     * но сохраняет встроенный ICC. При $stripMetadata=false Imagick сохраняет
+     * остальные метаданные, а EXIF Orientation приводит к 1 после поворота.
+     * GD, как и прежде, удаляет метаданные при записи вне зависимости от параметра:
+     * GD не поддерживает их сохранение и не возвращает из-за этого ошибку.
+     * Не назначает sRGB автоматически. При ошибке возвращает false; getError() — причина.
      *
-     * @param string $filename Путь или URL изображения.
+     * @param string $filename Путь или URL исходного изображения.
+     * @param bool $stripMetadata false — сохранить метаданные, иначе удалить лишние.
      * @return bool
      */
-    public function load(string $filename): bool
+    public function load($filename, bool $stripMetadata = true): bool
     {
-        if ($filename === '') {
+        if (!is_string($filename) || $filename === '') {
             return $this->fail(ImageError::INVALID_ARGUMENT, 'Image filename must be a non-empty string');
         }
         $processor = $this->resolveProcessor();
@@ -157,14 +168,33 @@ class SimpleImage
             return false;
         }
         try {
-            if (!$processor->load($filename)) {
-                return $this->fail(ImageError::LOAD_FAILED, 'Failed to load image: ' . $filename);
+            // AUTO может перейти на GD при ошибке декодирования через Imagick.
+            // GD всегда удаляет метаданные, включая при load(..., false).
+            $loadReason = null;
+            try {
+                $loaded = $processor->load($filename, $stripMetadata);
+            } catch (\Throwable $loadException) {
+                $loaded = false;
+                $loadReason = $loadException->getMessage();
             }
-            if ($processor instanceof ImagickProcessor) {
-                $icc = $this->readProfile($this->profile);
-                if ($icc === false || !$this->applyProfileTo($processor, $icc, $this->replaceProfile)) {
-                    return false;
+            if (!$loaded && $this->version === self::PROCESSOR_AUTO &&
+                $processor instanceof ImagickProcessor && $this->available(self::PROCESSOR_GD)) {
+                $processor = new GdImageProcessor();
+                try {
+                    $loaded = $processor->load($filename, $stripMetadata);
+                } catch (\Throwable $loadException) {
+                    $loaded = false;
+                    $loadReason = $loadException->getMessage();
                 }
+            }
+            if (!$loaded) {
+                return $this->fail(ImageError::LOAD_FAILED,
+                    'Failed to load image: ' . ($loadReason === null ? $filename : $loadReason));
+            }
+            if ($this->profile !== null) {
+                $icc = $this->readProfile($this->profile);
+                if ($icc === false || !$this->canAssignProfile($processor, $icc, $this->replaceProfile) ||
+                    !$this->applyProfileTo($processor, $icc, $this->replaceProfile)) return false;
             }
             $info = @getimagesize($filename);
             $this->processor = $processor;
@@ -230,6 +260,30 @@ class SimpleImage
         } catch (\Throwable $e) {
             return $this->fail(ImageError::SAVE_FAILED, 'Failed to output the image: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Возвращает цветовое пространство текущих пикселей: RGB, CMYK, GRAY, LAB, XYZ и т. д.
+     * До загрузки возвращает null. Это НЕ имя ICC-профиля: например, RGB допускает
+     * профиль sRGB или Display P3, но по одному RGB нельзя установить точный профиль.
+     * Для GD возвращает RGB (декодированный GD всегда использует RGB-пиксели).
+     */
+    public function getImageColorspace(): ?string
+    {
+        return $this->processor ? $this->processor->getColorspace() : null;
+    }
+
+    /**
+     * Возвращает читаемое имя встроенного ICC-профиля или null, если его нет.
+     * При отсутствии текстового имени в ICC возвращает "ICC profile (RGB)" или
+     * аналогичную строку. GD не предоставляет встроенные профили, поэтому вернёт null.
+     */
+    public function getProfileName(): ?string
+    {
+        if (!$this->processor) return null;
+        $icc = $this->processor->getProfile();
+        if ($icc === null) return null;
+        return IccProfile::name($icc) ?? ('ICC profile (' . (IccProfile::colorspace($icc) ?? 'UNKNOWN') . ')');
     }
 
     /** Возвращает внутренний объект GD или Imagick (до загрузки — null). */
@@ -357,7 +411,7 @@ class SimpleImage
             return $this->fail(ImageError::PROFILE_NOT_FOUND, 'ICC profile file not found: ' . $profile);
         }
         $icc = @file_get_contents($profile);
-        if ($icc === false || strlen($icc) < 132 || substr($icc, 36, 4) !== 'acsp') {
+        if ($icc === false || !IccProfile::valid($icc)) {
             return $this->fail(ImageError::PROFILE_NOT_FOUND, 'Invalid ICC profile file: ' . $profile);
         }
         $header = unpack('Nsize', substr($icc, 0, 4));
@@ -365,6 +419,24 @@ class SimpleImage
             return $this->fail(ImageError::PROFILE_NOT_FOUND, 'Invalid ICC profile length: ' . $profile);
         }
         return $icc;
+    }
+
+    /** Проверяет, что нельзя назначить RGB ICC поверх CMYK/GRAY и наоборот. */
+    private function canAssignProfile($processor, $icc, $replace): bool
+    {
+        if (!($processor instanceof ImagickProcessor)) {
+            return $this->fail(ImageError::PROFILE_UNSUPPORTED, 'ICC profiles require Imagick; GD cannot embed ICC profiles');
+        }
+        if ($processor->getProfile() !== null && !$replace) return true;
+        $imageSpace = $processor->getColorspace();
+        $profileSpace = IccProfile::colorspace($icc);
+        if ($profileSpace === null || $profileSpace === 'OTHER' || $imageSpace === null ||
+            $imageSpace === 'UNKNOWN' || $imageSpace !== $profileSpace) {
+            return $this->fail(ImageError::PROFILE_COLORSPACE_MISMATCH,
+                'ICC profile colorspace ' . ($profileSpace ?? 'UNKNOWN') .
+                ' does not match image colorspace ' . ($imageSpace ?? 'UNKNOWN'));
+        }
+        return true;
     }
 
     private function applyProfileTo($processor, $icc, $replace): bool
@@ -396,7 +468,7 @@ class SimpleImage
             $types[constant('IMAGETYPE_AVIF')] = 'avif';
         }
         if (is_int($type)) {
-            return $types[$type] ?? false;
+            return isset($types[$type]) ? $types[$type] : false;
         }
         if (!is_string($type)) {
             return false;
@@ -447,6 +519,54 @@ class SimpleImage
     {
         $this->error = new ImageError($code, $message);
         return false;
+    }
+
+    /**
+     * Совместимость с наследниками: создаёт GD-изображение из файла, не меняя $this->image.
+     * При отсутствии GD/декодера возвращает false. Не предназначен для Imagick.
+     */
+    protected function createFromFile($filename, $image_type = null)
+    {
+        if (!is_string($filename) || $filename === '' || !function_exists('imagecreatetruecolor')) return false;
+        $info = $image_type === null ? @getimagesize($filename) : null;
+        $type = $image_type === null ? ($info ? $info[2] : null) : $image_type;
+        if ($type === null) return false;
+        $ext = is_string($type) ? strtolower($type) : image_type_to_extension($type, false);
+        if ($ext === 'jpg') $ext = 'jpeg';
+        $function = 'imagecreatefrom' . $ext;
+        return function_exists($function) ? @$function($filename) : false;
+    }
+
+    /** Совместимость с наследниками: создаёт холст GD с прозрачным или RGB-фоном. */
+    protected function createCanvas($width, $height, $background = null)
+    {
+        if (!function_exists('imagecreatetruecolor') || $width < 1 || $height < 1) return false;
+        $canvas = imagecreatetruecolor((int) $width, (int) $height);
+        if ($canvas === false) return false;
+        $this->keepAlpha($canvas);
+        if ($background === null) {
+            $color = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        } else {
+            $rgb = $this->parseColor($background);
+            $color = imagecolorallocate($canvas, $rgb[0], $rgb[1], $rgb[2]);
+        }
+        imagefilledrectangle($canvas, 0, 0, (int) $width - 1, (int) $height - 1, $color);
+        return $canvas;
+    }
+
+    /** Совместимость с наследниками: сохраняет альфа-канал GD-изображения. */
+    protected function keepAlpha($image)
+    {
+        if (!function_exists('imagesavealpha')) return false;
+        imagealphablending($image, false);
+        return imagesavealpha($image, true);
+    }
+
+    /** Совместимость с наследниками: делегирует ресемплинг GD; возвращает bool. */
+    protected function imageCopyResampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh)
+    {
+        if (!function_exists('imagecopyresampled')) return false;
+        return imagecopyresampled($dst, $src, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh);
     }
 
     /** Возвращает расширение по типу исходного файла. */

@@ -83,6 +83,21 @@ namespace {
     verifyStub($image->convertToProfile(SimpleImage::PROFILE_SRGB) === false, 'GD cannot convert ICC');
     verifyStub(!preg_match('/[А-ЯЁа-яё]/u', $image->getError()->getMessage()), 'GD error message is English');
     verifyStub($image->save($out, 'png') && $image->getError() === null, 'successful operation clears error');
+    class LegacyChildImage extends SimpleImage {
+        public function oldCreate($path) { return $this->createFromFile($path); }
+        public function oldCanvas($w,$h) { return $this->createCanvas($w,$h); }
+        public function oldAlpha($img) { return $this->keepAlpha($img); }
+        public function oldCopy($img) { return $this->imageCopyResampled($img,$img,0,0,0,0,1,1,1,1); }
+    }
+    $legacy = new LegacyChildImage();
+    verifyStub($legacy->oldCreate($source) instanceof FakeGdImage,'protected createFromFile works in descendant');
+    $canvas = $legacy->oldCanvas(8,4);
+    verifyStub($canvas instanceof FakeGdImage,'protected createCanvas works in descendant');
+    verifyStub($legacy->oldAlpha($canvas),'protected keepAlpha works in descendant');
+    verifyStub($legacy->oldCopy($canvas),'protected imageCopyResampled works in descendant');
+    verifyStub($legacy->getImageColorspace()===null && $legacy->getProfileName()===null,'unloaded GD getters return null');
+    verifyStub($image->getImageColorspace()==='RGB' && $image->getProfileName()===null,'GD reports RGB but cannot read ICC');
+    verifyStub($image->load($source, false),'GD accepts false flag but always strips metadata on save');
     unlink($source); unlink($out); rmdir($dir);
     echo "DONE: GD wrapper mock tests passed (not a real GD integration test)\n";
 }

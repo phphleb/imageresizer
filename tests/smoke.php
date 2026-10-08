@@ -28,3 +28,9 @@ check(method_exists($i, 'convertToProfile'), 'conversion API exists');
 check($i->convertToProfile(SimpleImage::PROFILE_SRGB) === false, 'conversion requires loaded image');
 check($i->getError()->getCode() === ImageError::PROCESSING_FAILED, 'conversion without image code');
 check(!defined(SimpleImage::class . '::PROFILE_ADOBE_RGB'), 'no unbundled Adobe constant');
+
+check(!method_exists($i, 'setStripMetadata'), 'v3 has no setStripMetadata');
+check($i->getProfileName() === null && $i->getImageColorspace() === null, 'unloaded profile accessors');
+$load = new ReflectionMethod(SimpleImage::class, 'load');
+check($load->getNumberOfParameters() === 2 && $load->getParameters()[1]->getDefaultValue() === true,
+    'load takes metadata flag with stripping enabled by default');

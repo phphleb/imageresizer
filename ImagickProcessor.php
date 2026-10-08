@@ -1,146 +1,252 @@
 <?php
 namespace Phphleb\Imageresizer;
 
+/** Обработчик Imagick: пиксели, ICC и метаданные изображений. */
 class ImagickProcessor implements ProcessorInterface
 {
     private $image;
+    private $stripMetadata = true;
 
-    /** Загружает изображение из файла; возвращает true/false. */
-    public function load($filename): bool
+    /**
+     * Загружает изображение. EXIF Orientation всегда применяется к пикселям, даже
+     * когда остальные метаданные пользователь попросил сохранить.
+     */
+    public function load($filename, $stripMetadata = true): bool
     {
         $image = new \Imagick();
-        $image->readImage($filename);
-        if ($image->getNumberImages() > 1) $image->setIteratorIndex(0);
+        if ($image->readImage($filename) === false) return false;
+        if ($image->getNumberImages() > 1 && $image->setIteratorIndex(0) === false) return false;
+        if (!$this->orient($image)) return false;
+        $this->stripMetadata = $stripMetadata !== false;
+        if (!$this->stripMetadata && !$this->normalizeExif($image)) return false;
         $this->image = $image;
         return true;
     }
 
-    private function prepare($format, $quality): bool
+    /** Сохраняет изображение в файл, очищая EXIF/IPTC/XMP при включённой настройке. */
+    public function save($filename, $format, $quality): bool
+    {
+        $ready = $this->prepare($format, $quality);
+        if ($ready === false) return false;
+        return $ready->writeImage($filename) !== false;
+    }
+
+    /** Выводит изображение в поток браузера. */
+    public function output($format): bool
+    {
+        $ready = $this->prepare($format, 100);
+        if ($ready === false) return false;
+        $blob = $ready->getImageBlob();
+        if (!is_string($blob) || $blob === '') return false;
+        echo $blob;
+        return true;
+    }
+
+    /** Готовит отдельную копию для записи, не меняя исходный объект и его метаданные. */
+    private function prepare($format, $quality)
     {
         if (!$this->image) return false;
         $format = strtolower((string) $format);
         if ($format === 'jpg') $format = 'jpeg';
         if (!in_array($format, array('jpeg', 'png', 'gif', 'webp', 'bmp', 'wbmp', 'avif'), true)) return false;
-        $this->image->setImageFormat($format);
-        if ($format === 'jpeg' || $format === 'webp') $this->image->setImageCompressionQuality((int) $quality);
+        $copy = clone $this->image;
+        if ($this->stripMetadata) {
+            $icc = $this->getProfile();
+            if ($copy->stripImage() === false) return false;
+            // stripImage удаляет все профили, поэтому ICC возвращается отдельно.
+            if ($icc !== null && $copy->setImageProfile('icc', $icc) === false) return false;
+        }
+        if ($copy->setImageFormat($format) === false) return false;
+        if (($format === 'jpeg' || $format === 'webp') &&
+            $copy->setImageCompressionQuality((int) $quality) === false) return false;
+        return $copy;
+    }
+
+    /** Физически применяет EXIF Orientation и сбрасывает его в нормальное положение. */
+    private function orient($image): bool
+    {
+        if (!method_exists($image, 'getImageOrientation')) return true;
+        $orientation = $image->getImageOrientation();
+        $topLeft = defined('Imagick::ORIENTATION_TOPLEFT') ? constant('Imagick::ORIENTATION_TOPLEFT') : 1;
+        if (!$orientation || $orientation === $topLeft) return true;
+        if (!method_exists($image, 'autoOrientImage')) return false;
+        if ($image->autoOrientImage() === false) return false;
+        // При сохранении EXIF Orientation обязан описывать уже повернутые пиксели.
+        return !method_exists($image, 'setImageOrientation') ||
+            $image->setImageOrientation($topLeft) !== false;
+    }
+
+    /**
+     * После autoOrientImage() исправляет также Orientation внутри бинарного EXIF.
+     * setImageOrientation() меняет ориентацию изображения, но не гарантирует
+     * изменение IFD0 во всех версиях ImageMagick.
+     */
+    private function normalizeExif($image): bool
+    {
+        $profiles = $image->getImageProfiles('exif', true);
+        if (!is_array($profiles)) return true;
+        $profiles = array_change_key_case($profiles, CASE_LOWER);
+        if (!isset($profiles['exif'])) return true;
+        $original = $profiles['exif'];
+        $normalized = ExifOrientation::normalizeProfile($original);
+        if ($normalized !== $original && $image->setImageProfile('exif', $normalized) === false) return false;
         return true;
     }
 
-    /** Сохраняет обработанное изображение в файл в заданном формате и качестве. */
-    public function save($filename, $format, $quality)
-    {
-        if (!$this->prepare($format, $quality)) return false;
-        return $this->image->writeImage($filename);
-    }
-
-    /** Выводит изображение в поток ответа. */
-    public function output($format): bool
-    {
-        if (!$this->prepare($format, 100)) return false;
-        echo $this->image->getImageBlob();
-        return true;
-    }
-
-    /** Возвращает внутреннее представление текущего изображения. */
+    /** Возвращает объект Imagick (или null до загрузки). */
     public function getImage() { return $this->image; }
-    /** Возвращает ширину текущего изображения в пикселях. */
+    /** Возвращает ширину текущих пикселей. */
     public function getWidth() { return $this->image ? $this->image->getImageWidth() : 1; }
-    /** Возвращает высоту текущего изображения в пикселях. */
+    /** Возвращает высоту текущих пикселей. */
     public function getHeight() { return $this->image ? $this->image->getImageHeight() : 1; }
 
-    /** Изменяет ширину и высоту изображения до указанных значений. */
+    /** Определяет семейство цветового пространства пикселей, а не имя ICC-профиля. */
+    public function getColorspace(): ?string
+    {
+        if (!$this->image) return null;
+        $value = $this->image->getImageColorspace();
+        $groups = array(
+            'RGB' => array('RGB', 'SRGB', 'SCRGB', 'LINEARRGB', 'ADOBE98', 'PROPHOTO', 'DISPLAYP3'),
+            'CMYK' => array('CMYK'),
+            'GRAY' => array('GRAY', 'LINEARGRAY'),
+            'LAB' => array('LAB', 'LCH', 'LCHAB'),
+            'XYZ' => array('XYZ', 'XYY'),
+            'YCBCR' => array('YCBCR'),
+            'HSL' => array('HSL', 'HSB', 'HSV'),
+        );
+        foreach ($groups as $name => $constants) {
+            foreach ($constants as $constant) {
+                $key = 'Imagick::COLORSPACE_' . $constant;
+                if (defined($key) && $value === constant($key)) return $name;
+            }
+        }
+        $icc = $this->getProfile();
+        return $icc === null ? 'UNKNOWN' : (IccProfile::colorspace($icc) ?? 'UNKNOWN');
+    }
+
+    /** Изменяет размеры изображения с использованием Lanczos. */
     public function resize($width, $height)
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
-        return $this->image->resizeImage($width, $height, \Imagick::FILTER_LANCZOS, 1, false);
+        return $this->image->resizeImage($width, $height, \Imagick::FILTER_LANCZOS, 1, false) !== false;
     }
 
-    /** Обрезает изображение по заданной прямоугольной области. */
+    /** Обрезает прямоугольную область, сохраняя ICC и прозрачность за краями. */
     public function crop($width, $height, $x, $y): bool
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
-        // Virtual pixels outside the source are transparent, as with the old GD canvas.
         $canvas = $this->canvas($width, $height, null);
-        if (!$canvas->compositeImage($this->image, \Imagick::COMPOSITE_OVER, -$x, -$y)) return false;
-        $this->copyIccProfile($canvas);
+        if ($canvas === false) return false;
+        if ($canvas->compositeImage($this->image, \Imagick::COMPOSITE_OVER, -$x, -$y) === false) return false;
+        if (!$this->copyProfilesTo($canvas)) return false;
         $this->image = $canvas;
         return true;
     }
 
-    private function canvas($width, $height, $background): \Imagick
+    /** Создаёт новый холст, по возможности сохраняя исходное цветовое пространство. */
+    private function canvas($width, $height, $background)
     {
         $pixel = $background === null ? new \ImagickPixel('transparent')
             : new \ImagickPixel(sprintf('rgb(%d,%d,%d)', $background[0], $background[1], $background[2]));
         $canvas = new \Imagick();
-        $canvas->newImage($width, $height, $pixel, 'png');
-        $canvas->setImageDepth($this->image->getImageDepth());
+        if ($canvas->newImage($width, $height, $pixel, 'png') === false) return false;
+        if ($canvas->setImageDepth($this->image->getImageDepth()) === false) return false;
+        if (method_exists($canvas, 'setImageColorspace') && method_exists($this->image, 'getImageColorspace')) {
+            $space = $this->image->getImageColorspace();
+            // Some ImageMagick versions refuse undefined colorspaces; don't force them.
+            if ($space && $canvas->setImageColorspace($space) === false) return false;
+        }
         return $canvas;
     }
 
-    /** Вписывает изображение в область или заполняет её с обрезанием. */
+    /** Вписывает изображение или заполняет область с кадрированием по центру. */
     public function fit($width, $height, $background, $cover): bool
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         $scale = $cover ? max($width / $this->getWidth(), $height / $this->getHeight())
-                        : min($width / $this->getWidth(), $height / $this->getHeight());
+            : min($width / $this->getWidth(), $height / $this->getHeight());
         $w = max(1, (int) round($this->getWidth() * $scale));
         $h = max(1, (int) round($this->getHeight() * $scale));
         $resized = clone $this->image;
-        if (!$resized->resizeImage($w, $h, \Imagick::FILTER_LANCZOS, 1, false)) return false;
+        if ($resized->resizeImage($w, $h, \Imagick::FILTER_LANCZOS, 1, false) === false) return false;
         $canvas = $this->canvas($width, $height, $background);
-        if (!$canvas->compositeImage($resized, \Imagick::COMPOSITE_OVER,
-            (int) round(($width - $w) / 2), (int) round(($height - $h) / 2))) return false;
-        $this->copyIccProfile($canvas);
+        if ($canvas === false) return false;
+        if ($canvas->compositeImage($resized, \Imagick::COMPOSITE_OVER,
+            (int) round(($width - $w) / 2), (int) round(($height - $h) / 2)) === false) return false;
+        if (!$this->copyProfilesTo($canvas)) return false;
         $this->image = $canvas;
         return true;
     }
 
     /**
-     * Копирует цветовой профиль в новый холст без преобразования пикселей.
-     * @param \Imagick $canvas
-     * @return void
+     * Переносит ICC на новый холст. При load(..., false) переносит и прочие
+     * профили/свойства, чтобы кадрирование не удаляло их неявно.
      */
-    private function copyIccProfile($canvas)
+    private function copyProfilesTo($canvas): bool
     {
-        $profile = $this->getProfile();
-        if ($profile !== null) {
-            $canvas->setImageProfile('icc', $profile);
+        if (!$this->stripMetadata) {
+            $profiles = $this->image->getImageProfiles('*', true);
+            if (is_array($profiles)) {
+                foreach ($profiles as $name => $data) {
+                    if ($canvas->setImageProfile($name, $data) === false) return false;
+                }
+            }
+            if (method_exists($this->image, 'getImageProperties') && method_exists($canvas, 'setImageProperty')) {
+                $properties = $this->image->getImageProperties('*');
+                if (is_array($properties)) {
+                    foreach ($properties as $name => $value) {
+                        // Some read-only computed properties cannot be changed, ignore those.
+                        if (is_string($name) && is_string($value) &&
+                            (stripos($name, 'exif:') === 0 || stripos($name, 'xmp:') === 0 ||
+                             $name === 'comment' || $name === 'label')) {
+                            // EXIF:* can be computed/read-only; the binary EXIF profile is
+                            // the authoritative data, so ignore non-writable derived properties.
+                            try { $canvas->setImageProperty($name, $value); }
+                            catch (\Throwable $ignored) { }
+                        }
+                    }
+                }
+            }
+            // Новый холст содержит физически ориентированные пиксели.
+            // Сброс ориентации обязателен и при копировании EXIF.
+            if (method_exists($canvas, 'setImageOrientation')) {
+                $topLeft = defined('Imagick::ORIENTATION_TOPLEFT') ? constant('Imagick::ORIENTATION_TOPLEFT') : 1;
+                if ($canvas->setImageOrientation($topLeft) === false) return false;
+            }
+            return true;
         }
+        $icc = $this->getProfile();
+        return $icc === null || $canvas->setImageProfile('icc', $icc) !== false;
     }
 
-    /**
-     * Назначает ICC без изменения значений пикселей. Без $replace сохраняет исходный профиль.
-     * В отличие от profileImage(), setImageProfile() не конвертирует цвета.
-     */
+    /** Назначает ICC без конвертации; при replace=false существующий ICC остаётся. */
     public function applyProfile($icc, $replace): bool
     {
         if (!$this->image) return false;
-        $current = $this->getProfile();
-        if ($current !== null && !$replace) return true;
+        if ($this->getProfile() !== null && !$replace) return true;
         $copy = clone $this->image;
-        if (!$copy->setImageProfile('icc', $icc)) return false;
+        if ($copy->setImageProfile('icc', $icc) === false) return false;
         $this->image = $copy;
         return true;
     }
 
-    /**
-     * Конвертирует значения пикселей из существующего ICC в целевой профиль.
-     * Использует цветовое преобразование ImageMagick (не простую смену метки).
-     */
+    /** Преобразует цвета из текущего ICC в переданный профиль. */
     public function convertToProfile($icc): bool
     {
         if (!$this->image || $this->getProfile() === null) return false;
         $copy = clone $this->image;
-        if (!$copy->profileImage('icc', $icc)) return false;
+        if ($copy->profileImage('icc', $icc) === false) return false;
         $this->image = $copy;
         return true;
     }
 
-    /** Возвращает бинарные данные текущего ICC-профиля или null при его отсутствии. */
+    /** Возвращает байты встроенного ICC или null. */
     public function getProfile()
     {
         if (!$this->image) return null;
         $profiles = $this->image->getImageProfiles('icc', true);
-        return isset($profiles['icc']) ? $profiles['icc'] : null;
+        if (!is_array($profiles)) return null;
+        $profiles = array_change_key_case($profiles, CASE_LOWER);
+        return isset($profiles['icc']) && $profiles['icc'] !== '' ? $profiles['icc'] : null;
     }
 }

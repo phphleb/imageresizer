@@ -4,7 +4,7 @@ namespace Phphleb\Imageresizer;
 interface ProcessorInterface
 {
     /** Загружает изображение из файла; возвращает true/false. */
-    public function load($filename);
+    public function load($filename, $stripMetadata = true);
     /** Сохраняет обработанное изображение в файл в заданном формате и качестве. */
     public function save($filename, $format, $quality);
     /** Выводит изображение в поток ответа. */
@@ -27,4 +27,6 @@ interface ProcessorInterface
     public function convertToProfile($icc);
     /** Возвращает бинарные данные текущего ICC либо null. */
     public function getProfile();
+    /** Определяет семейство цветового пространства декодированных пикселей. */
+    public function getColorspace();
 }

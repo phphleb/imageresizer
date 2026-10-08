@@ -1,0 +1,67 @@
+name: PHP image processing
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  imagick:
+    name: "Imagick / PHP ${{ matrix.php }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '7.2'
+            os: ubuntu-22.04
+          - php: '8.2'
+            os: ubuntu-latest
+          - php: '8.4'
+            os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP and Imagick
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: imagick, exif
+          coverage: none
+      - name: Show PHP version
+        run: php -v
+      - name: Assert real Imagick installed
+        run: php -r 'if (!extension_loaded("imagick")) { fwrite(STDERR, "Imagick is required\n"); exit(1); }'
+      - name: Run complete Imagick suite (real images and simulated failures)
+        run: php tests/run.php imagick
+
+  gd:
+    name: "GD / PHP ${{ matrix.php }}"
+    needs: imagick
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '7.2'
+            os: ubuntu-22.04
+          - php: '8.2'
+            os: ubuntu-latest
+          - php: '8.4'
+            os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP and GD
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: gd, exif
+          coverage: none
+      - name: Show PHP version
+        run: php -v
+      - name: Assert real GD installed
+        run: php -r 'if (!extension_loaded("gd")) { fwrite(STDERR, "GD is required\n"); exit(1); }'
+      - name: Run complete GD suite (real images and simulated failures)
+        run: php tests/run.php gd

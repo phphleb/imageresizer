@@ -6,10 +6,14 @@ class GdImageProcessor implements ProcessorInterface
 {
     private $image;
     private $format;
+    /** GD преобразует загруженное изображение в RGB-пиксели. */
+    public function getColorspace(): ?string { return $this->image ? 'RGB' : null; }
 
     /** Загружает изображение из файла; возвращает true/false. */
-    public function load($filename): bool
+    public function load($filename, $stripMetadata = true)
     {
+        // Параметр действует только для Imagick. GD всегда записывает файл без
+        // исходных EXIF/GPS/XMP, как в прежней версии библиотеки.
         $info = @getimagesize($filename);
         if (!$info) return false;
         $format = strtolower(image_type_to_extension($info[2], false));
@@ -18,9 +22,14 @@ class GdImageProcessor implements ProcessorInterface
         if (!function_exists($fn)) return false;
         $image = @$fn($filename);
         if (!$image) return false;
-        $this->image = $image;
-        $this->format = $format;
         $this->alpha($image);
+        // EXIF Orientation — необходимая инструкция по отображению изображения,
+        // а не мусорные метаданные. Перед записью без EXIF переносим её в пиксели.
+        $orientation = ExifOrientation::fromFile($filename);
+        $oriented = $this->orient($image, $orientation);
+        if ($oriented === false) return false;
+        $this->image = $oriented;
+        $this->format = $format;
         return true;
     }
 
@@ -28,6 +37,25 @@ class GdImageProcessor implements ProcessorInterface
     {
         imagealphablending($image, false);
         imagesavealpha($image, true);
+    }
+
+    /** Применяет поворот/отражение EXIF Orientation к GD-пикселям (все значения 1–8). */
+    private function orient($image, $orientation)
+    {
+        if ($orientation === 1) return $image;
+        // Для ориентаций 2,4,5,7 требуется отражение.
+        if (in_array($orientation, array(2, 4, 5, 7), true)) {
+            $direction = $orientation === 4 ? IMG_FLIP_VERTICAL : IMG_FLIP_HORIZONTAL;
+            if (!function_exists('imageflip') || imageflip($image, $direction) === false) return false;
+        }
+        $degrees = array(3 => 180, 5 => 90, 6 => -90, 7 => -90, 8 => 90);
+        if (!isset($degrees[$orientation])) return $image;
+        if (!function_exists('imagerotate')) return false;
+        $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
+        $rotated = imagerotate($image, $degrees[$orientation], $transparent);
+        if ($rotated === false) return false;
+        $this->alpha($rotated);
+        return $rotated;
     }
 
     /** Сохраняет обработанное изображение в файл в заданном формате и качестве. */
@@ -61,7 +89,7 @@ class GdImageProcessor implements ProcessorInterface
         return $canvas;
     }
 
-    private function copy($canvas, $x, $y, $sx, $sy, $w, $h, $sw, $sh): bool
+    private function copy($canvas, $x, $y, $sx, $sy, $w, $h, $sw, $sh)
     {
         return imagecopyresampled($canvas, $this->image, (int) round($x), (int) round($y),
             (int) round($sx), (int) round($sy), (int) round($w), (int) round($h),
@@ -79,7 +107,7 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Обрезает изображение по заданной прямоугольной области. */
-    public function crop($width, $height, $x, $y): bool
+    public function crop($width, $height, $x, $y)
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         $canvas = $this->canvas($width, $height);
@@ -89,7 +117,7 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Вписывает изображение в область или заполняет её с обрезанием. */
-    public function fit($width, $height, $background, $cover): bool
+    public function fit($width, $height, $background, $cover)
     {
         if (!$this->image || $width < 1 || $height < 1) return false;
         $scale = $cover ? max($width / $this->getWidth(), $height / $this->getHeight())
@@ -104,20 +132,9 @@ class GdImageProcessor implements ProcessorInterface
     }
 
     /** Назначает ICC без преобразования цвета; replace разрешает замену существующей метки. */
-    public function applyProfile($icc, $replace): bool
-    {
-        return false;
-    }
-
+    public function applyProfile($icc, $replace) { return false; }
     /** Возвращает бинарные данные текущего ICC либо null. */
-    public function getProfile()
-    {
-        return null;
-    }
-
+    public function getProfile() { return null; }
     /** Преобразует пиксели из исходного встроенного ICC в указанный целевой ICC. */
-    public function convertToProfile($icc): bool
-    {
-        return false;
-    }
+    public function convertToProfile($icc) { return false; }
 }

@@ -1,6 +1,7 @@
 <?php
 namespace Phphleb\Imageresizer;
 
+/** Описание последней ошибки обработки без обязательного выбрасывания исключения. */
 class ImageError extends \Exception
 {
     const BACKEND_UNAVAILABLE = 1;
@@ -11,14 +12,14 @@ class ImageError extends \Exception
     const PROFILE_UNSUPPORTED = 6;
     const SOURCE_PROFILE_MISSING = 7;
     const INVALID_ARGUMENT = 8;
+    const PROFILE_COLORSPACE_MISMATCH = 9;
 
-    /** Создаёт описание ошибки из кода и сообщения. */
-    public function __construct($code, $message) {
-
+    /** Принимает код и сообщение на английском. */
+    public function __construct($code, $message)
+    {
         parent::__construct($message, $code);
-
     }
 
-    /** Возвращает строковый код ошибки. */
+    /** Текст ошибки для вывода в лог. */
     public function __toString() { return $this->getMessage(); }
 }
