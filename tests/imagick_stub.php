@@ -22,7 +22,9 @@ namespace {
         public static $failProfile = false;
         public static $failFormat = false;
         public static $failCopyProfile = false;
+        public static $failOption = false;
         public $profiles = array();
+        public $options = array();
         public $metadata = array('exif:GPSLatitude' => '12.34', 'xmp:creator' => 'tester');
         public $conversions = 0;
         public $width = 0;
@@ -97,6 +99,10 @@ namespace {
             if (self::$failFormat) return false;
             $this->format=$format; return true;
         }
+        public function setOption($name,$value) {
+            if (self::$failOption) return false;
+            $this->options[$name]=$value; return true;
+        }
         public function setImageCompressionQuality($quality) { return true; }
         public function writeImage($path) {
             self::$saved[$path]=clone $this;
@@ -131,6 +137,8 @@ namespace {
     $im=new SimpleImage();
     assertIm($im->getImageColorspace()===null && $im->getProfileName()===null,'null properties before load');
     assertIm($im->load($plain),'load profileless image');
+    assertIm(isset($im->getImage()->options['png:preserve-iCCP']),
+        'PNG decoder preserves embedded ICC bytes when opening an image');
     assertIm($im->getProcessorVersion()===SimpleImage::PROCESSOR_IMAGICK,'Imagick selected');
     assertIm($im->getImageColorspace()==='RGB','RGB family recognized without assuming sRGB');
     assertIm($im->getProfileName()===null && $im->getImage()->profiles===array(),'no automatic ICC assignment');
@@ -156,6 +164,9 @@ namespace {
     assertIm($im->save($out,'png'),'save with default metadata strip');
     assertIm(Imagick::$saved[$out]->metadata===array() && Imagick::$saved[$out]->stripCalled,'EXIF/XMP removed by default');
     assertIm(Imagick::$saved[$out]->profiles['icc']===$icc,'ICC preserved when stripping');
+    assertIm(isset(Imagick::$saved[$out]->options['png:preserve-iCCP']) &&
+        Imagick::$saved[$out]->options['png:preserve-iCCP']==='true',
+        'PNG encoder preserves full ICC instead of replacing it with an sRGB chunk');
     assertIm($im->getImage()->metadata!==array(),'saving does not strip the active image');
     $preserve = new SimpleImage();
     assertIm($preserve->load($plain, false),'load(..., false) selects metadata preservation');
@@ -164,6 +175,8 @@ namespace {
     assertIm($preserve->save($out2,'png'),'save with metadata preserved');
     assertIm(Imagick::$saved[$out2]->metadata!==array() && !Imagick::$saved[$out2]->stripCalled,
         'EXIF/XMP retained when load(..., false)');
+    assertIm(isset(Imagick::$saved[$out2]->options['png:preserve-iCCP']),
+        'PNG ICC preservation also works with metadata stripping disabled');
     $preserve->resizeInCenter(4,3);
     assertIm($preserve->getImage()->metadata!==array(),'crop/fit preserves metadata in preservation mode');
     $out2a=$dir.'/keep-after-fit.png';
@@ -172,6 +185,13 @@ namespace {
     ob_start(); $ok=$im->output('png'); $bytes=ob_get_clean();
     assertIm($ok && $bytes==='stub-image-data' && Imagick::$saved[':blob']->metadata===array(),
         'output stream also strips metadata in default mode');
+    assertIm(isset(Imagick::$saved[':blob']->options['png:preserve-iCCP']),
+        'output() keeps the complete PNG ICC profile');
+    Imagick::$failOption=true;
+    assertIm($im->save($dir.'/bad-option.png','png')===false &&
+        $im->getError()->getCode()===ImageError::SAVE_FAILED,
+        'PNG profile preservation option failure is reported');
+    Imagick::$failOption=false;
     Imagick::$failFormat=true;
     assertIm($im->save($dir.'/bad.png','png')===false && $im->getError()->getCode()===ImageError::SAVE_FAILED,'setImageFormat false handled');
     Imagick::$failFormat=false;

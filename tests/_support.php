@@ -26,6 +26,37 @@ function suitePngChunk(string $type, string $data): string
     return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
 }
 
+/** Возвращает секции PNG по типам, чтобы проверять их без особенностей декодера Imagick. */
+function suitePngChunks(string $bytes): array
+{
+    if (substr($bytes, 0, 8) !== "\x89PNG\r\n\x1a\n") return [];
+    $chunks = [];
+    $length = strlen($bytes);
+    $offset = 8;
+    while ($offset + 12 <= $length) {
+        $size = unpack('N', substr($bytes, $offset, 4))[1];
+        if ($size > $length - $offset - 12) return [];
+        $type = substr($bytes, $offset + 4, 4);
+        $chunks[$type] = substr($bytes, $offset + 8, $size);
+        $offset += 12 + $size;
+        if ($type === 'IEND') break;
+    }
+    return $chunks;
+}
+
+/** Читает байты ICC из настоящего PNG iCCP, а не из метаданных Imagick. */
+function suitePngIcc(string $bytes): ?string
+{
+    $chunks = suitePngChunks($bytes);
+    if (!isset($chunks['iCCP'])) return null;
+    $chunk = $chunks['iCCP'];
+    $separator = strpos($chunk, "\x00");
+    if ($separator === false || !isset($chunk[$separator + 1]) ||
+        ord($chunk[$separator + 1]) !== 0) return null;
+    $icc = @gzuncompress(substr($chunk, $separator + 2));
+    return is_string($icc) ? $icc : null;
+}
+
 /** PNG RGBA без внешних инструментов; четыре цветных квадранта и прозрачный угол. */
 function suitePng(string $path, int $w = 60, int $h = 40, bool $transparent = false): void
 {

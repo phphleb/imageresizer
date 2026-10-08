@@ -236,10 +236,16 @@ if ($backend === 'imagick') {
         'getProfileName returns sRGB profile name');
     suiteAssert($profile->save($dir . '/icc-original.png', 'png'),
         'Embed assigned ICC into PNG');
-    $check = new \Imagick($dir . '/icc-original.png');
-    $sourceProfiles = array_change_key_case($check->getImageProfiles('icc', true) ?: [], CASE_LOWER);
-    suiteAssert(isset($sourceProfiles['icc']) && $sourceProfiles['icc'] === $icc,
+    $encoded = file_get_contents($dir . '/icc-original.png');
+    $encodedChunks = suitePngChunks($encoded);
+    suiteAssert(suitePngIcc($encoded) === $icc && !isset($encodedChunks['sRGB']),
         'Exact embedded ICC data survives PNG save with metadata stripping');
+    $roundtripImage = newSelected($backend);
+    $roundtripOk = $roundtripImage->load($dir . '/icc-original.png');
+    $roundtripName = $roundtripImage->getProfileName();
+    suiteAssert($roundtripOk && is_string($roundtripName) &&
+        stripos($roundtripName, 'sRGB') !== false,
+        'Loading a PNG with iCCP retains the ICC name');
     foreach (['resize', 'crop', 'fit'] as $op) {
         if ($op === 'resize') $profile->resize(26, 18);
         elseif ($op === 'crop') $profile->cropBySelectedRegion(16, 12, -2, -2);
@@ -247,14 +253,11 @@ if ($backend === 'imagick') {
         suiteAssert($profile->getError() === null, "ICC {$op} succeeded");
         $dst = $dir . '/icc-' . $op . '.png';
         suiteAssert($profile->save($dst, 'png'), "ICC {$op} output saved");
-        $roundtrip = new \Imagick($dst);
-        $stored = array_change_key_case($roundtrip->getImageProfiles('icc', true) ?: [], CASE_LOWER);
-        suiteAssert(isset($stored['icc']) && $stored['icc'] === $icc,
+        suiteAssert(suitePngIcc(file_get_contents($dst)) === $icc,
             "ICC {$op} preserved byte-for-byte after reopening");
     }
     ob_start(); $profileOutputOk = $profile->output('png'); $profileBlob = ob_get_clean();
-    suiteAssert($profileOutputOk && $profileBlob !== '' &&
-        strpos($profileBlob, 'acsp') !== false,
+    suiteAssert($profileOutputOk && suitePngIcc($profileBlob) === $icc,
         'ICC profile survives output() stream after resizing and cropping');
     suiteAssert($profile->setProfile(SimpleImage::PROFILE_SRGB, false),
         'Setting an existing ICC without replace does not fail');

@@ -14,6 +14,10 @@ class ImagickProcessor implements ProcessorInterface
     public function load($filename, $stripMetadata = true): bool
     {
         $image = new \Imagick();
+        // По умолчанию ImageMagick может при чтении PNG заменить ICC sRGB
+        // краткой меткой sRGB. Сохраняем исходный iCCP и при декодировании.
+        if (method_exists($image, 'setOption') &&
+            $image->setOption('png:preserve-iCCP', 'true') === false) return false;
         if ($image->readImage($filename) === false) return false;
         if ($image->getNumberImages() > 1 && $image->setIteratorIndex(0) === false) return false;
         if (!$this->orient($image, $filename)) return false;
@@ -57,6 +61,12 @@ class ImagickProcessor implements ProcessorInterface
             if ($icc !== null && $copy->setImageProfile('icc', $icc) === false) return false;
         }
         if ($copy->setImageFormat($format) === false) return false;
+        if ($format === 'png' && $this->getProfile() !== null) {
+            // По умолчанию PNG-кодер ImageMagick может заменить известный
+            // sRGB ICC на короткий chunk sRGB. Явно назначенный/исходный ICC
+            // должен остаться встроенным iCCP даже после очистки метаданных.
+            if ($copy->setOption('png:preserve-iCCP', 'true') === false) return false;
+        }
         if (($format === 'jpeg' || $format === 'webp') &&
             $copy->setImageCompressionQuality((int) $quality) === false) return false;
         return $copy;
