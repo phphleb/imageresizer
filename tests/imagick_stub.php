@@ -106,15 +106,16 @@ namespace {
         public function setImageCompressionQuality($quality) { return true; }
         public function writeImage($path) {
             self::$saved[$path]=clone $this;
-            return file_put_contents($path,'stub-image-data') !== false;
+            return file_put_contents($path, $this->format === 'png' ? pngIm($this->width, $this->height) : 'stub-image-data') !== false;
         }
         public function getImageBlob() {
             self::$saved[':blob']=clone $this;
-            return 'stub-image-data';
+            return $this->format === 'png' ? pngIm($this->width, $this->height) : 'stub-image-data';
         }
     }
 
     require dirname(__DIR__) . '/SimpleImage.php';
+    require __DIR__ . '/_support.php';
     use Phphleb\Imageresizer\SimpleImage;
     use Phphleb\Imageresizer\ImageError;
     function assertIm($value,$message) {
@@ -164,6 +165,7 @@ namespace {
     assertIm($im->save($out,'png'),'save with default metadata strip');
     assertIm(Imagick::$saved[$out]->metadata===array() && Imagick::$saved[$out]->stripCalled,'EXIF/XMP removed by default');
     assertIm(Imagick::$saved[$out]->profiles['icc']===$icc,'ICC preserved when stripping');
+    assertIm(suitePngIcc(file_get_contents($out))===$icc,'PNG iCCP repaired when the encoder discards ICC bytes');
     assertIm(isset(Imagick::$saved[$out]->options['png:preserve-iCCP']) &&
         Imagick::$saved[$out]->options['png:preserve-iCCP']==='true',
         'PNG encoder preserves full ICC instead of replacing it with an sRGB chunk');
@@ -173,6 +175,7 @@ namespace {
     assertIm($preserve->setProfile(SimpleImage::PROFILE_SRGB),'assign ICC to metadata-preserving image');
     $out2=$dir.'/keep.png';
     assertIm($preserve->save($out2,'png'),'save with metadata preserved');
+    assertIm(suitePngIcc(file_get_contents($out2))===$icc,'ICC embedded when metadata is preserved');
     assertIm(Imagick::$saved[$out2]->metadata!==array() && !Imagick::$saved[$out2]->stripCalled,
         'EXIF/XMP retained when load(..., false)');
     assertIm(isset(Imagick::$saved[$out2]->options['png:preserve-iCCP']),
@@ -183,7 +186,7 @@ namespace {
     assertIm($preserve->save($out2a,'png'),'save after crop in preservation mode');
     assertIm(Imagick::$saved[$out2a]->metadata!==array(), 'metadata survives crop in preservation mode');
     ob_start(); $ok=$im->output('png'); $bytes=ob_get_clean();
-    assertIm($ok && $bytes==='stub-image-data' && Imagick::$saved[':blob']->metadata===array(),
+    assertIm($ok && suitePngIcc($bytes)===$icc && Imagick::$saved[':blob']->metadata===array(),
         'output stream also strips metadata in default mode');
     assertIm(isset(Imagick::$saved[':blob']->options['png:preserve-iCCP']),
         'output() keeps the complete PNG ICC profile');

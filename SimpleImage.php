@@ -9,6 +9,7 @@ require_once __DIR__ . '/GdImageProcessor.php';
 require_once __DIR__ . '/ImagickProcessor.php';
 require_once __DIR__ . '/ImageError.php';
 require_once __DIR__ . '/IccProfile.php';
+require_once __DIR__ . '/PngIcc.php';
 require_once __DIR__ . '/ExifOrientation.php';
 
 /** Обертка для обработки изображений через Imagick или GD. */

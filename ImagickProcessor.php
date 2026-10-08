@@ -32,7 +32,20 @@ class ImagickProcessor implements ProcessorInterface
     {
         $ready = $this->prepare($format, $quality);
         if ($ready === false) return false;
-        return $ready->writeImage($filename) !== false;
+        if ($ready->writeImage($filename) === false) return false;
+        if (strtolower((string) $format) !== 'png') return true;
+        $icc = $this->getProfile();
+        if ($icc === null) return true;
+
+        // A successful Imagick write does not guarantee that the PNG encoder
+        // retained the ICC bytes. Inspect and, if necessary, fix the iCCP
+        // chunk without modifying the encoded pixel data.
+        $png = @file_get_contents($filename);
+        if (!is_string($png)) return false;
+        $fixed = PngIcc::embed($png, $icc);
+        if ($fixed === false) return false;
+        if ($fixed === $png) return true;
+        return @file_put_contents($filename, $fixed) === strlen($fixed);
     }
 
     /** Выводит изображение в поток браузера. */
@@ -42,6 +55,13 @@ class ImagickProcessor implements ProcessorInterface
         if ($ready === false) return false;
         $blob = $ready->getImageBlob();
         if (!is_string($blob) || $blob === '') return false;
+        if (strtolower((string) $format) === 'png') {
+            $icc = $this->getProfile();
+            if ($icc !== null) {
+                $blob = PngIcc::embed($blob, $icc);
+                if ($blob === false) return false;
+            }
+        }
         echo $blob;
         return true;
     }

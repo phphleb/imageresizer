@@ -238,7 +238,14 @@ if ($backend === 'imagick') {
         'Embed assigned ICC into PNG');
     $encoded = file_get_contents($dir . '/icc-original.png');
     $encodedChunks = suitePngChunks($encoded);
-    suiteAssert(suitePngIcc($encoded) === $icc && !isset($encodedChunks['sRGB']),
+    $writtenIcc = suitePngIcc($encoded);
+    if ($writtenIcc !== $icc || isset($encodedChunks['sRGB'])) {
+        fwrite(STDERR, 'PNG ICC diagnostic: chunks=' . implode(',', array_keys($encodedChunks)) .
+            ', expected=' . strlen($icc) . ' bytes (' . hash('sha256', $icc) . ')' .
+            ', actual=' . ($writtenIcc === null ? 'missing' :
+                strlen($writtenIcc) . ' bytes (' . hash('sha256', $writtenIcc) . ')') . "\n");
+    }
+    suiteAssert($writtenIcc === $icc && !isset($encodedChunks['sRGB']),
         'Exact embedded ICC data survives PNG save with metadata stripping');
     $roundtripImage = newSelected($backend);
     $roundtripOk = $roundtripImage->load($dir . '/icc-original.png');
