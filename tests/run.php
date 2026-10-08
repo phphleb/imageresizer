@@ -7,7 +7,7 @@ if ($backend !== 'imagick' && $backend !== 'gd') {
 }
 $php = escapeshellarg(PHP_BINARY);
 $common = ['smoke.php', 'bc_review.php', 'icc_profile.php', 'exif_orientation.php', 'source_contract.php'];
-$mocks = ['imagick_stub.php', 'gd_stub.php', 'fallback_stub.php'];
+$mocks = ['imagick_stub.php', 'imagick_orientation_legacy_stub.php', 'gd_stub.php', 'fallback_stub.php'];
 foreach ($common as $test) {
     $command = $php . ' ' . escapeshellarg(__DIR__ . '/' . $test);
     echo "\n=== {$test} ===\n";

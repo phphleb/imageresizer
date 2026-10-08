@@ -16,7 +16,7 @@ class ImagickProcessor implements ProcessorInterface
         $image = new \Imagick();
         if ($image->readImage($filename) === false) return false;
         if ($image->getNumberImages() > 1 && $image->setIteratorIndex(0) === false) return false;
-        if (!$this->orient($image)) return false;
+        if (!$this->orient($image, $filename)) return false;
         $this->stripMetadata = $stripMetadata !== false;
         if (!$this->stripMetadata && !$this->normalizeExif($image)) return false;
         $this->image = $image;
@@ -62,22 +62,58 @@ class ImagickProcessor implements ProcessorInterface
         return $copy;
     }
 
-    /** Физически применяет EXIF Orientation и сбрасывает его в нормальное положение. */
-    private function orient($image): bool
+    /**
+     * Применяет EXIF Orientation к пикселям без зависимости от autoOrientImage().
+     * Imagick поворачивает по часовой стрелке (в отличие от GD).
+     * При отсутствии orientation API читает EXIF непосредственно из JPEG.
+     */
+    private function orient($image, $filename): bool
     {
-        if (!method_exists($image, 'getImageOrientation')) return true;
-        $orientation = $image->getImageOrientation();
+        $orientation = method_exists($image, 'getImageOrientation')
+            ? (int) $image->getImageOrientation() : 0;
+        if ($orientation < 1 || $orientation > 8) {
+            $orientation = ExifOrientation::fromFile($filename);
+        }
         $topLeft = defined('Imagick::ORIENTATION_TOPLEFT') ? constant('Imagick::ORIENTATION_TOPLEFT') : 1;
-        if (!$orientation || $orientation === $topLeft) return true;
-        if (!method_exists($image, 'autoOrientImage')) return false;
-        if ($image->autoOrientImage() === false) return false;
-        // При сохранении EXIF Orientation обязан описывать уже повернутые пиксели.
+        if ($orientation === 1) return true;
+
+        $transparent = new \ImagickPixel('none');
+        switch ($orientation) {
+            case 2: // Отражение слева направо.
+                $ok = $image->flopImage();
+                break;
+            case 3: // 180 градусов.
+                $ok = $image->rotateImage($transparent, 180);
+                break;
+            case 4: // Отражение сверху вниз.
+                $ok = $image->flipImage();
+                break;
+            case 5: // Транспонирование (отражение + поворот против часовой).
+                $ok = $image->flopImage() !== false &&
+                    $image->rotateImage($transparent, -90) !== false;
+                break;
+            case 6: // Поворот по часовой стрелке.
+                $ok = $image->rotateImage($transparent, 90);
+                break;
+            case 7: // Поперечное отражение (отражение + поворот по часовой).
+                $ok = $image->flopImage() !== false &&
+                    $image->rotateImage($transparent, 90) !== false;
+                break;
+            case 8: // Поворот против часовой стрелки.
+                $ok = $image->rotateImage($transparent, -90);
+                break;
+            default:
+                return false;
+        }
+        if ($ok === false) return false;
+
+        // Ориентация записанного EXIF и реальные пиксели должны совпадать.
         return !method_exists($image, 'setImageOrientation') ||
             $image->setImageOrientation($topLeft) !== false;
     }
 
     /**
-     * После autoOrientImage() исправляет также Orientation внутри бинарного EXIF.
+     * После физического поворота исправляет также Orientation внутри бинарного EXIF.
      * setImageOrientation() меняет ориентацию изображения, но не гарантирует
      * изменение IFD0 во всех версиях ImageMagick.
      */

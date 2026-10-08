@@ -19,6 +19,7 @@ GitHub Actions: `.github/workflows/tests.yml`. Сначала отрабатыв
 | `source_contract.php` | Сообщения и строковые значения в PHP-исходниках без русского текста |
 | `exif_orientation.php` | EXIF 1–8, TIFF little/big endian, повреждённые данные, нормализация |
 | `imagick_stub.php` | Выбор, ICC, конверсия, очистка, ошибки Imagick (имитация) |
+| `imagick_orientation_legacy_stub.php` | Все 8 ориентаций, отражения, сохранение EXIF, ошибки поворота без `autoOrientImage()` |
 | `gd_stub.php` | Выбор GD, трансформации, наследование, ошибки GD (имитация) |
 | `fallback_stub.php` | Автоматическое переключение при ошибке декодирования Imagick |
 | `real_backend.php` | Реальные PNG/JPEG, цвета, ориентация 1–8, прозрачность, размеры, ресайз, кадрирование, сохранение, output, ошибки, EXIF/GPS/XMP и ICC |

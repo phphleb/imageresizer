@@ -31,6 +31,7 @@ namespace {
         public $format = 'png';
         public $colorspace = self::COLORSPACE_SRGB;
         public $orientation = 1;
+        public $transformations = array();
         public $stripCalled = false;
         public function readImage($file)
         {
@@ -48,12 +49,16 @@ namespace {
         public function getNumberImages() { return 1; }
         public function setIteratorIndex($idx) { return true; }
         public function getImageOrientation() { return $this->orientation; }
-        public function autoOrientImage() {
-            if (in_array($this->orientation, array(5,6,7,8), true)) {
+        public function setImageOrientation($orientation) { $this->orientation = $orientation; return true; }
+        public function rotateImage($background, $degrees) {
+            $this->transformations[] = 'rotate:' . $degrees;
+            if (abs($degrees) === 90) {
                 $tmp = $this->width; $this->width = $this->height; $this->height = $tmp;
             }
-            $this->orientation = 1; $this->pixels .= ':oriented'; return true;
+            $this->pixels .= ':rotated'; return true;
         }
+        public function flopImage() { $this->transformations[] = 'flop'; return true; }
+        public function flipImage() { $this->transformations[] = 'flip'; return true; }
         public function getImageColorspace() { return $this->colorspace; }
         public function setImageColorspace($s) { $this->colorspace = $s; return true; }
         public function getImageWidth() { return $this->width; }
@@ -187,6 +192,8 @@ namespace {
     $im2=new SimpleImage();
     assertIm($im2->load($rotate, false) && $im2->getWidth()===3 && $im2->getHeight()===2,
         'EXIF orientation applies even when preserving metadata');
+    assertIm($im2->getImage()->transformations===array('rotate:90'),
+        'Imagick manual orientation works without autoOrientImage');
     assertIm($im2->save($dir.'/rotate-keep.png','png'),'save rotated image with metadata preserved');
     assertIm(Imagick::$saved[$dir.'/rotate-keep.png']->orientation===1,
         'EXIF orientation normalized when preservation requested');

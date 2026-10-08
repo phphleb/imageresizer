@@ -16,7 +16,9 @@ $backend = $argv[1] ?? '';
 suiteAssert(in_array($backend, ['imagick', 'gd'], true), 'Explicit backend must be imagick or gd');
 suiteAssert(extension_loaded($backend), "Required real PHP extension {$backend} is installed");
 if ($backend === 'gd') suiteAssert(function_exists('imagecreatefromjpeg'), 'GD JPEG decoder installed');
-else suiteAssert(class_exists('Imagick') && method_exists('Imagick', 'autoOrientImage'), 'Imagick supports auto orientation');
+else suiteAssert(class_exists('Imagick') && method_exists('Imagick', 'rotateImage') &&
+    method_exists('Imagick', 'flopImage') && method_exists('Imagick', 'flipImage'),
+    'Imagick supports rotation and both mirror directions');
 
 $dir = suiteDirectory();
 $png = $dir . '/fixture.png';
