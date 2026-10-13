@@ -9,8 +9,24 @@ interface ProcessorInterface
     public function save($filename, $format, $quality);
     /** Выводит изображение в поток ответа. */
     public function output($format);
-    /** Возвращает внутреннее представление текущего изображения. */
+    /**
+     * Возвращает внутреннее представление текущего изображения.
+     *
+     * @deprecated Используйте getImagick() или getGd().
+     */
     public function getImage();
+    /**
+     * Возвращает объект Imagick текущего изображения.
+     *
+     * @throws ImageError Если текущий обработчик — GD.
+     */
+    public function getImagick();
+    /**
+     * Возвращает GD-ресурс или объект GdImage текущего изображения.
+     *
+     * @throws ImageError Если текущий обработчик — Imagick.
+     */
+    public function getGd();
     /** Возвращает ширину текущего изображения в пикселях. */
     public function getWidth();
     /** Возвращает высоту текущего изображения в пикселях. */

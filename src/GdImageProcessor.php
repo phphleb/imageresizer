@@ -74,10 +74,27 @@ class GdImageProcessor implements ProcessorInterface
 
     /** Выводит изображение в поток ответа. */
     public function output($format) { return $this->save(null, $format, 100); }
-    /** Возвращает внутреннее представление текущего изображения. */
+
+    /**
+     * Возвращает внутреннее представление текущего изображения.
+     *
+     * @deprecated Используйте getGd().
+     */
     public function getImage() { return $this->image; }
+
+    /** GD не может вернуть объект Imagick. */
+    public function getImagick()
+    {
+        throw new ImageError(ImageError::PROCESSOR_MISMATCH,
+            'Cannot return an Imagick object when the GD processor is selected');
+    }
+
+    /** Возвращает GD-ресурс или объект GdImage (или null до загрузки). */
+    public function getGd() { return $this->image; }
+
     /** Возвращает ширину текущего изображения в пикселях. */
     public function getWidth() { return $this->image ? imagesx($this->image) : 1; }
+
     /** Возвращает высоту текущего изображения в пикселях. */
     public function getHeight() { return $this->image ? imagesy($this->image) : 1; }
 
@@ -135,10 +152,19 @@ class GdImageProcessor implements ProcessorInterface
 
     /** Назначает ICC без преобразования цвета; replace разрешает замену существующей метки. */
     public function applyProfile($icc, $replace): bool
-    { return false; }
+    {
+        return false;
+    }
+
     /** Возвращает бинарные данные текущего ICC либо null. */
-    public function getProfile() { return null; }
+    public function getProfile()
+    {
+        return null;
+    }
+
     /** Преобразует пиксели из исходного встроенного ICC в указанный целевой ICC. */
     public function convertToProfile($icc): bool
-    { return false; }
+    {
+        return false;
+    }
 }

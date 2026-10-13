@@ -167,12 +167,34 @@ class ImagickProcessor implements ProcessorInterface
         return true;
     }
 
-    /** Возвращает объект Imagick (или null до загрузки). */
+    /**
+     * Возвращает объект Imagick/Gd (или null до загрузки).
+     *
+     * @deprecated Используйте getImagick()/getGd().
+     */
     public function getImage() { return $this->image; }
-    /** Возвращает ширину текущих пикселей. */
-    public function getWidth() { return $this->image ? $this->image->getImageWidth() : 1; }
-    /** Возвращает высоту текущих пикселей. */
-    public function getHeight() { return $this->image ? $this->image->getImageHeight() : 1; }
+
+    /** Возвращает объект Imagick (или null до загрузки). */
+    public function getImagick() { return $this->image; }
+
+    /** Imagick не может вернуть GD-ресурс или объект GdImage. */
+    public function getGd()
+    {
+        throw new ImageError(ImageError::PROCESSOR_MISMATCH,
+            'Cannot return a GD image when the Imagick processor is selected');
+    }
+
+    /** Возвращает текущую ширину в пикселях. */
+    public function getWidth()
+    {
+        return $this->image ? $this->image->getImageWidth() : 1;
+    }
+
+    /** Возвращает текущую высоту в пикселях. */
+    public function getHeight()
+    {
+        return $this->image ? $this->image->getImageHeight() : 1;
+    }
 
     /** Определяет семейство цветового пространства пикселей, а не имя ICC-профиля. */
     public function getColorspace(): ?string

@@ -295,10 +295,54 @@ class SimpleImage
         return IccProfile::name($icc) ?? ('ICC profile (' . (IccProfile::colorspace($icc) ?? 'UNKNOWN') . ')');
     }
 
-    /** Возвращает внутренний объект GD или Imagick (до загрузки — null). */
+    /**
+     * Возвращает внутренний объект GD или Imagick (до загрузки — null).
+     *
+     * @deprecated Используйте getImagick() или getGd(), чтобы явно указать ожидаемый тип.
+     */
     public function getImage()
     {
         return $this->processor ? $this->processor->getImage() : null;
+    }
+
+    /**
+     * Возвращает объект Imagick (до загрузки — null).
+     *
+     * @return \Imagick|null
+     * @throws ImageError Если выбран GD.
+     */
+    public function getImagick()
+    {
+        if (!$this->processor) {
+            if ($this->version === self::PROCESSOR_GD) {
+                $this->throwProcessorMismatch(self::PROCESSOR_IMAGICK);
+            }
+            return null;
+        }
+        if ($this->processor instanceof GdImageProcessor) {
+            $this->throwProcessorMismatch(self::PROCESSOR_IMAGICK);
+        }
+        return $this->processor->getImagick();
+    }
+
+    /**
+     * Возвращает GD-ресурс или объект GdImage (до загрузки — null).
+     *
+     * @return resource|\GdImage|null
+     * @throws ImageError Если выбран Imagick.
+     */
+    public function getGd()
+    {
+        if (!$this->processor) {
+            if ($this->version === self::PROCESSOR_IMAGICK) {
+                $this->throwProcessorMismatch(self::PROCESSOR_GD);
+            }
+            return null;
+        }
+        if ($this->processor instanceof ImagickProcessor) {
+            $this->throwProcessorMismatch(self::PROCESSOR_GD);
+        }
+        return $this->processor->getGd();
     }
 
     /** Возвращает ширину изображения в пикселях (до загрузки — 1). */
@@ -540,6 +584,15 @@ class SimpleImage
     private function throwBackendUnavailable($message)
     {
         $this->error = new ImageError(ImageError::BACKEND_UNAVAILABLE, $message);
+        throw $this->error;
+    }
+
+    /** Сохраняет и бросает исключение при запросе объекта другого обработчика. */
+    private function throwProcessorMismatch($requested)
+    {
+        $current = $this->getProcessorVersion();
+        $this->error = new ImageError(ImageError::PROCESSOR_MISMATCH,
+            'Cannot return a ' . $requested . ' image when the ' . $current . ' processor is selected');
         throw $this->error;
     }
 

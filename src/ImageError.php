@@ -13,6 +13,7 @@ class ImageError extends \Exception
     const SOURCE_PROFILE_MISSING = 7;
     const INVALID_ARGUMENT = 8;
     const PROFILE_COLORSPACE_MISMATCH = 9;
+    const PROCESSOR_MISMATCH = 10;
 
     /** Принимает код и сообщение. */
     public function __construct($code, $message)
