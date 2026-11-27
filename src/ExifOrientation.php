@@ -10,6 +10,14 @@ final class ExifOrientation
      */
     public static function fromFile($filename): int
     {
+        // ext-exif читает Orientation только у JPEG и TIFF. Вызов на PNG, GIF,
+        // WebP и других форматах даёт предупреждение «File not supported».
+        $header = @file_get_contents($filename, false, null, 0, 4);
+        if (!is_string($header)) return 1;
+        $jpeg = substr($header, 0, 2) === "\xff\xd8";
+        $tiff = $header === "II*\0" || $header === "MM\0*";
+        if (!$jpeg && !$tiff) return 1;
+
         if (function_exists('exif_read_data')) {
             try {
                 $exif = @exif_read_data($filename, 'IFD0', true, false);
@@ -24,6 +32,7 @@ final class ExifOrientation
             }
         }
 
+        if (!$jpeg) return 1;
         // JPEG APP1 находится перед пиксельными данными. Лимит позволяет избежать
         // загрузки всего большого файла в память только ради Orientation.
         $bytes = @file_get_contents($filename, false, null, 0, 1048576);
